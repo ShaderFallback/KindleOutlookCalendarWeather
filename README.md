@@ -31,7 +31,7 @@ https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=52
 
 #7. 修改 config.ini 文件 ClientID 和 ClientValue 
 
-#8. 打开scripts文件夹下的 city_code.json(记事本即可) Ctrl+F 查询你所在的城市代码
+#8. 打开scripts文件夹下的 city_code.json(建议用Notepad++) Ctrl+F 查询你所在的城市代码
 
 #9. 修改 config.ini 文件CityCode 项
 
