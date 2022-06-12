@@ -43,8 +43,9 @@ https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=52
 https://www.mobileread.com/forums/showthread.php?t=225030
 
 非越狱方案
-你需要有一个 Windows  或 Linux 服务器 安装Python环境, 将脚本目录的config.ini 
-HtmlServer 项设置为 1 , 如果想省钱也可以购买一个 香橙派之类的国产ARM开发板
+你需要有一个 Windows  或 Linux 服务器并安装Python环境, 修改配置文件 config.ini 
+中 HtmlServer 项设置为 1 , 运行脚本WeatherStation.py 即可
+如果想省钱也可以购买一个 香橙派之类的国产ARM开发板,或二手的瘦客户机
 
 
 Bilibili 日出东水 原创制作
