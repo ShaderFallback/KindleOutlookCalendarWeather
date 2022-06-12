@@ -20,15 +20,19 @@ https://bookfere.com/post/311.html#p_6
 #5. 开通Outlook邮箱的Api权限, 得到客户端ID 和 密码值 (如何获取看这个视频)
 https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=5228a3ffeeee092609a234a5dbf99989
 
-#6. 修改 config.ini 文件 ClientID 和 ClientValue 
+#5. 使用令牌生成工具,生成令牌文件 https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/0.1
 
-#7. 打开scripts文件夹下的 city_code.json(记事本即可) Ctrl+F 查询你所在的城市代码
+#6. 将生成好的 o365_token.txt 文件放在 KindleOutlookCalendarWeather/bin  目录下
 
-#8. 修改 config.ini 文件CityCode 项
+#7. 修改 config.ini 文件 ClientID 和 ClientValue 
 
-#9. Kindle数据线连接电脑, 将KindleOutlookCalendarWeather 文件夹拷贝到extensions 文件夹下
+#8. 打开scripts文件夹下的 city_code.json(记事本即可) Ctrl+F 查询你所在的城市代码
 
-#10.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
+#9. 修改 config.ini 文件CityCode 项
+
+#10. Kindle数据线连接电脑, 将KindleOutlookCalendarWeather 文件夹拷贝到extensions 文件夹下
+
+#11.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
 
 越狱原贴链接
 https://www.mobileread.com/forums/showthread.php?t=225030
