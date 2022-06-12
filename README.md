@@ -1,6 +1,11 @@
 # KindleOutlookCalendarWeather
  standAlone
  
+
+![image](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/image/KindleOutlookCalendar_01.jpg)
+![image](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/image/KindleOutlookCalendar_00.jpg)
+![image](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/image/KindleOutlookCalendar_02.jpg)
+ 
 #1.先越狱
 https://bookfere.com/novice#novice_8_1
 https://bookfere.com/post/892.html
