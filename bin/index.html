@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head> 
+<meta charset="utf-8"> 
+<title>WeatherStation</title> 
+</head>
+    <body>
+        <script>
+            
+            function myrefresh() {
+                //把UTC时间转换到本地
+                var _date = new Date();
+                var _utc8DiffMinutes = _date.getTimezoneOffset() + 480
+                _date.setMinutes(_date.getMinutes() + _utc8DiffMinutes)
+
+                //var _seconds = _date.getSeconds()-60
+                //_date.setSeconds(_seconds)
+
+                var _minutes = ("0"+_date.getMinutes()).slice(-2).toString();
+                var _hours = ("0"+_date.getHours()).slice(-2).toString();
+
+                var _timeStr = _hours + _minutes
+                var _nowTimeImgName = "nowTime"+_timeStr+".png";
+
+                //var _nowspan = document.getElementById("p2");
+                //_nowspan.innerHTML = _date;
+
+                //var _title = document.getElementById("p1");
+                //_title.innerHTML = "当前加载图片:"+_nowTimeImgName;
+
+                //var numb = radio.getAttribute('value'); //获取被选中的单选按钮的value值
+                var _img = document.getElementById('img1'); //设置要加载的图片
+                _img.setAttribute('src', _nowTimeImgName);
+                setTimeout('myrefresh()', 1000); //指定1秒刷新一次
+            }
+        </script>
+    
+    <body onLoad="myrefresh()">
+    <!-- Kindle 的横向适配 width="550px" height="685px" -->
+    <!-- 默认的图片宽度是 width="800px" height="600px" -->
+
+    <img id="img1" src="" width="550px" height="685px" />
+    <!-- 
+    <p id="p2">当前系统时间</p>
+    <p id="p1">这里显示加载图片名称</p>
+    -->
+    </body>
+</html>

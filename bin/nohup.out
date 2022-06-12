@@ -1,0 +1,79 @@
+2022-06-11 13:41:17   RootPath: /mnt/us/extensions/OutlookCalendarWeather/bin
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+Displaying image '/mnt/us/extensions/OutlookCalendarWeather/bin/black.png' @ column 0 + 0px, row 0 + 0px (scaling: 600x0, H align: 1, V align: 1, inverted: N, flattened: N, waveform: AUTO, HW dithering: PASSTHROUGH, SW dithered: N, nightmode: N, skip refresh: N)
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+2022-06-11 13:41:17   Update Init...
+2022-06-11 13:41:17   Reset Update...ok
+2022-06-11 13:41:18   Update Weather...ok
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+Displaying image '/mnt/us/extensions/OutlookCalendarWeather/bin/nowTime.png' @ column 0 + 0px, row 0 + 0px (scaling: 600x0, H align: 1, V align: 1, inverted: N, flattened: N, waveform: AUTO, HW dithering: PASSTHROUGH, SW dithered: N, nightmode: N, skip refresh: N)
+2022-06-11 13:41:18   Update Screen...ok
+2022-06-11 13:41:21   Update Schedule...ok
+Traceback (most recent call last):
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/WeatherStation.py", line 19, in <module>
+    from O365 import Account
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/__init__.py", line 8, in <module>
+    from .account import Account
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/account.py", line 1, in <module>
+    from .connection import Connection, Protocol, MSGraphProtocol
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/connection.py", line 17, in <module>
+    from stringcase import pascalcase, camelcase, snakecase
+ModuleNotFoundError: No module named 'stringcase'
+2022-06-11 13:42:18   Update Init...
+[FBInk] Detected a Kindle Basic (0xC6 => Bourbon on Wario)
+[FBInk] Clock tick frequency appears to be 100 Hz
+[FBInk] Screen density set to 167 dpi
+[FBInk] Variable fb info: 600x800, 8bpp @ rotation: 3 (Counter Clockwise, 270°)
+[FBInk] Fixed fb info: ID is "mxc_epdc_fb", length of fb mem: 3268608 bytes & line length: 608 bytes
+[FBInk] Fontsize set to 16x16 (IBM base glyph size: 8x8)
+[FBInk] Line length: 37 cols, Page size: 50 rows
+[FBInk] Pen colors set to #000000 for the foreground and #FFFFFF for the background
+Displaying image '/mnt/us/extensions/OutlookCalendarWeather/bin/nowTime.png' @ column 0 + 0px, row 0 + 0px (scaling: 600x0, H align: 1, V align: 1, inverted: N, flattened: N, waveform: AUTO, HW dithering: PASSTHROUGH, SW dithered: N, nightmode: N, skip refresh: N)
+2022-06-11 13:42:19   Update Screen...ok
+Traceback (most recent call last):
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/WeatherStation.py", line 19, in <module>
+    from O365 import Account
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/__init__.py", line 8, in <module>
+    from .account import Account
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/account.py", line 1, in <module>
+    from .connection import Connection, Protocol, MSGraphProtocol
+  File "/mnt/us/extensions/OutlookCalendarWeather/bin/O365/connection.py", line 17, in <module>
+    from stringcase import pascalcase, camelcase, snakecase
+ModuleNotFoundError: No module named 'stringcase'

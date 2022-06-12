@@ -1,0 +1,20 @@
+{
+	"items": [
+	{
+		"name": "Outlook天气台历",
+		"priority": -1,
+		"items": [
+		{
+			"name": "WeatherCalendar_On",
+			"priority": -999,
+			"action": "./bin/start.sh"		
+		},
+		{
+			"name": "WeatherCalendar_Off",
+			"priority": -999,
+			"action": "./bin/stop.sh"	
+		}
+		]
+	}
+	]
+}

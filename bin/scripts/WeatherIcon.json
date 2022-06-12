@@ -1,0 +1,69 @@
+{
+    "多云": {
+        "hover": "http://open.sojson.com/images/tianqi/cloud.png",
+        "image": "http://open.sojson.com/images/tianqi/cloud2.png"
+    },
+    "晴": {
+        "hover": "http://open.sojson.com/images/tianqi/fine.png",
+        "image": "http://open.sojson.com/images/tianqi/fine2.png"
+    },
+    "阴": {
+        "hover": "http://open.sojson.com/images/tianqi/overcast.png",
+        "image": "http://open.sojson.com/images/tianqi/overcast2.png"
+    },
+    "小雨": {
+        "hover": "http://open.sojson.com/images/tianqi/small_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/small_rain2.png"
+    },
+    "小到中雨": {
+        "hover": "http://open.sojson.com/images/tianqi/stom_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/stom_rain2.png"
+    },
+    "大雨|中到大雨": {
+        "hover": "http://open.sojson.com/images/tianqi/big_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/big_rain2.png"
+    },
+    "暴雨|大暴雨|特大暴雨|大到暴雨|暴雨到大暴雨|大暴雨到特大暴雨": {
+        "hover": "http://open.sojson.com/images/tianqi/mbig_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/mbig_rain2.png"
+    },
+    "雨夹雪": {
+        "hover": "http://open.sojson.com/images/tianqi/rain_snow.png",
+        "image": "http://open.sojson.com/images/tianqi/rain_snow2.png"
+    },
+    "阵雪": {
+        "hover": "http://open.sojson.com/images/tianqi/quick_snow.png",
+        "image": "http://open.sojson.com/images/tianqi/quick_snow2.png"
+    },
+    "雾": {
+        "hover": "http://open.sojson.com/images/tianqi/fog.png",
+        "image": "http://open.sojson.com/images/tianqi/fog2.png"
+    },
+    "沙尘暴|浮尘|扬沙|强沙尘暴|雾霾": {
+        "hover": "http://open.sojson.com/images/tianqi/sand.png",
+        "image": "http://open.sojson.com/images/tianqi/sand2.png"
+    },
+    "冻雨": {
+        "hover": "http://open.sojson.com/images/tianqi/ice_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/ice_rain2.png"
+    },
+    "中雨": {
+        "hover": "http://open.sojson.com/images/tianqi/mid_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/mid_rain2.png"
+    },
+    "雷阵雨伴有冰雹": {
+        "hover": "http://open.sojson.com/images/tianqi/quick_rain_ice2.png"
+    },
+    "阵雨": {
+        "hover": "http://open.sojson.com/images/tianqi/quick_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/quick_rain2.png"
+    },
+    "雷阵雨": {
+        "hover": "http://open.sojson.com/images/tianqi/lquick_rain.png",
+        "image": "http://open.sojson.com/images/tianqi/lquick_rain2.png"
+    },
+    "无天气类型": {
+        "hover": "http://open.sojson.com/images/tianqi/unknown.png",
+        "image": "http://open.sojson.com/images/tianqi/unknown2.png"
+    }
+}
