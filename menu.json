@@ -7,12 +7,12 @@
 		{
 			"name": "WeatherCalendar_On",
 			"priority": -999,
-			"action": "./bin/start.sh"		
+			"action": "source ./bin/start.sh"		
 		},
 		{
 			"name": "WeatherCalendar_Off",
 			"priority": -999,
-			"action": "./bin/stop.sh"	
+			"action": "source ./bin/stop.sh"	
 		}
 		]
 	}
