@@ -163,7 +163,7 @@ def _get_localzone(_root="/"):
         return tzenv
 
     #tzname = _get_localzone_name(_root)
-    tzname = "Asia/Shanghai"
+    tzname = "Etc/GMT"
     if tzname is None:
         # No explicit setting existed. Use localtime
         for filename in ("etc/localtime", "usr/local/etc/localtime"):

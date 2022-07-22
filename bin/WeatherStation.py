@@ -56,7 +56,7 @@ def DatetimeNow():
     if int(config[4][1]) == 1:
         return datetime.datetime.now() + datetime.timedelta(minutes = 1)
     else:
-        return datetime.datetime.now() + datetime.timedelta(hours = 8)
+        return datetime.datetime.now()
 
 def GetO365(maxCount):
     global scheduleDic
