@@ -56,7 +56,7 @@ def DatetimeNow():
     if int(config[4][1]) == 1:
         return datetime.datetime.now() + datetime.timedelta(minutes = 1)
     else:
-        return datetime.datetime.now()
+        return datetime.datetime.now() + datetime.timedelta(hours = 8)
 
 def GetO365(maxCount):
     global scheduleDic
@@ -379,11 +379,13 @@ def UpdateTime():
         if clearCount >10:
             ClearScreen()
             clearCount = 0
-        timeUpdate = DatetimeNow()
+        #timeUpdate = DatetimeNow()
+
+        timeNow = datetime.datetime.now() 
         #时间
-        strtimeHM = timeUpdate.strftime('%H%M')
+        strtimeHM = timeNow.strftime('%H%M')
         #小时
-        strtimeH = timeUpdate.strftime('%H')      
+        strtimeH = timeNow.strftime('%H')      
         intTime = int(strtimeH)
         #新建空白图片
         Himage = Image.new('1', (800, 600), 255)
@@ -392,9 +394,9 @@ def UpdateTime():
         bmp = Image.open(rootPath + '/pic/bg.png')
         Himage.paste(bmp,(0,0))
         #绘制水平栏
-        DrawHorizontalDar(draw,Himage,timeUpdate)
+        DrawHorizontalDar(draw,Himage,timeNow)
         #绘制日程
-        DrawSchedule(draw,timeUpdate)
+        DrawSchedule(draw,timeNow)
         #绘制天气预报
         DrawWeather(draw,Himage)
         #画线(x开始值，y开始值，x结束值，y结束值)
