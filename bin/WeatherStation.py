@@ -39,11 +39,14 @@ countUpdate_4 = False
 SwitchDay = True
 tempArray = ["---"]*23
 scheduleDic = OrderedDict()
+scheduleDic2 = OrderedDict()
 pathStrList = [""]*2
 clearCount = 0
 cfg = ConfigParser()
 cfg.read(rootPath + "/config.ini",encoding="utf-8")
 config = cfg.items("OutlookWeatherCalendar")
+switchRss = True
+nowPage = 0
 
 def GetTime():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+"   ")
@@ -326,7 +329,40 @@ def DrawSchedule(draw,timeUpdate):
         #日程标题
         draw.text((135,145 + x*65),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
         #draw.text((15,80 + x*100),bodyStr, font = fontSize16, fill = 0)
+ 
+def DrawRss(draw):
+    global scheduleDic
+    global scheduleDic2
+    global switchRss
+    global nowPage
+    
+    drawDic = scheduleDic
+    if(switchRss):
+        drawDic = scheduleDic
+    else:
+        drawDic = scheduleDic2
+    
+    if(len(drawDic) <= 0):
+        elemDic = OrderedDict()
+        elemDic["location"] = ""
+        elemDic["dateTime"] = DatetimeNow()
+        elemDic["subjectStr"] = "暂无新闻源..."
+        elemDic["bodyStr"] = ""
+        drawDic[0] = elemDic
         
+    drawDicLen = len(drawDic)
+    #要翻的页数
+    pageCount = math.ceil(drawDicLen/7)-1
+    if(nowPage > pageCount):
+        nowPage = 0
+        
+    for x in range(nowPage * 7 -7,min(nowPage*7,drawDicLen)):
+        #rss标题
+        subjectStr = drawDic[x]["subjectStr"]
+        draw.text((10,145 + x*60),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
+        
+    nowPage +=1
+ 
 def WeatherStrSwitch(index):
     if index == 0:
         return"明天"
@@ -372,6 +408,9 @@ def ClearScreen():
     #时间刷新循环
 def UpdateTime():
     global clearCount
+    global switchRss
+    oldIntTimeH = 0
+    bgName = ""
     while (True):
         print(GetTime()+'Update Init...', flush=True)
         #10分钟清空一次屏幕
@@ -379,24 +418,29 @@ def UpdateTime():
         if clearCount >10:
             ClearScreen()
             clearCount = 0
-        #timeUpdate = DatetimeNow()
-
-        timeNow = datetime.datetime.now() 
+        timeUpdate = DatetimeNow()
         #时间
-        strtimeHM = timeNow.strftime('%H%M')
+        strtimeHM = timeUpdate.strftime('%H%M')
         #小时
-        strtimeH = timeNow.strftime('%H')      
-        intTime = int(strtimeH)
+        strtimeH = timeUpdate.strftime('%H')   
+        intTimeH = int(strtimeH)
         #新建空白图片
         Himage = Image.new('1', (800, 600), 255)
         draw = ImageDraw.Draw(Himage)
         #显示背景
-        bmp = Image.open(rootPath + '/pic/bg.png')
+        if int(config[6][1] == 1):
+            bgName = "bgRss.png"
+        else:
+            bgName = "bg.png"
+        bmp = Image.open(rootPath + '/pic/'+ bgName)
         Himage.paste(bmp,(0,0))
         #绘制水平栏
-        DrawHorizontalDar(draw,Himage,timeNow)
+        DrawHorizontalDar(draw,Himage,timeUpdate)
         #绘制日程
-        DrawSchedule(draw,timeNow)
+        if int(config[6][1] == 1):
+            DrawRss(draw)
+        else:
+            DrawSchedule(draw,timeUpdate)
         #绘制天气预报
         DrawWeather(draw,Himage)
         #画线(x开始值，y开始值，x结束值，y结束值)
@@ -428,24 +472,81 @@ def UpdateTime():
             os.system(fbinkStr)
         print(GetTime() + 'Update Screen...ok', flush=True)
         
+        #每小时切换一次Rss源
+        if(intTimeH != oldIntTimeH)
+            if(switchRss):
+                switchRss = False
+            else:
+                switchRss = True
+            oldIntTimeH = intTimeH
+            
         #2点～6点 每小时刷新一次
-        if(intTime >= 1 and intTime <= 6):
+        if(intTimeH >= 1 and intTimeH <= 6):
             time.sleep(3600)
         else:
             time.sleep(60)
-        
+            
 
+        
+def GetRssDic(data,dataLen):
+    dataDic = OrderedDict()
+    for i in range(0,dataLen):
+        elemDic = OrderedDict()
+        elemDic["location"] = ""
+        elemDic["dateTime"] = DatetimeNow()
+        elemDic["subjectStr"] = data["entries"][i]["title"]
+        elemDic["bodyStr"] = ""
+        dataDic[i] = elemDic
+    return dataDic
+    
+def GetRss():
+    global scheduleDic
+    global scheduleDic2
+    while(True):
+        print(GetTime()+'Start Update Rss...', flush=True)
+        rssData = feedparser.parse(config[7][1])
+        rssData2 = feedparser.parse(config[8][1])
+        print(GetTime()+'Update Rss ok!', flush=True)
+        
+        dataLen = len(rssData["entries"])
+        dataLen2 = len(rssData2["entries"])
+        
+        scheduleDic[i] = GetRssDic(rssData,dataLen)
+        scheduleDic2[i] = GetRssDic(rssData2,dataLen2)
+        
+        timeUpdate = DatetimeNow()
+        UpdateTemp(timeUpdate)
+        strtime5 = timeUpdate.strftime('%H')      
+        intTime = int(strtime5)
+        if(intTime >= 1 and intTime <= 6): #2点～6点 每2小时刷新一次
+            time.sleep(7200)
+        else:
+            time.sleep(3600)
+            
 def NetworkThreading():
     global scheduleDic
     while (True):
         timeUpdate = DatetimeNow()
         UpdateTemp(timeUpdate)
+        print(GetTime() + 'Start Update Schedule...', flush=True)
         try:
             scheduleDic = GetO365(7)
             print(GetTime() + 'Update Schedule...ok', flush=True)
         except:
             print(GetTime() + 'Update Schedule..Fail!', flush=True)
-        time.sleep(int(config[3][1]))
+            elemDic = OrderedDict()
+            elemDic["location"] = ""
+            elemDic["dateTime"] = DatetimeNow()
+            elemDic["subjectStr"] = "日程获取失败...稍后重试"
+            elemDic["bodyStr"] = ""
+            scheduleDic[0] = elemDic
+        
+        strtimeH = timeUpdate.strftime('%H')      
+        intTime = int(strtimeH)
+        if(intTime >= 1 and intTime <= 6):
+            time.sleep(3600)
+        else:
+            time.sleep(int(config[3][1]))
 
 def GetHostIp():
     try:
@@ -480,9 +581,14 @@ if int(config[4][1]) == 1:
     serverThreading.start()
 
 timeThreading = threading.Thread(target=UpdateTime, args=())
-networkThreading = threading.Thread(target=NetworkThreading, args=())
 timeThreading.start()
-networkThreading.start()
+
+if int(config[6][1] == 1):
+    networkGetRss = threading.Thread(target=GetRss, args=())
+    networkGetRss.start()
+else:
+    networkThreading = threading.Thread(target=NetworkThreading, args=())
+    networkThreading.start()
 
 
 
