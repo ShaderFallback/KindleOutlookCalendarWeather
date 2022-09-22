@@ -29,7 +29,8 @@ https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=52
 
 #6. 将生成好的 o365_token.txt 文件放在 KindleOutlookCalendarWeather/bin  目录下
 
-#7. 修改 config.ini 文件 ClientID 和 ClientValue 
+#7. 修改 config.ini 文件 ClientID 和 ClientValue,推荐使用notepad++ 保存时选择 utf8无BOM格式
+不能使用Windows记事本编辑!!!,否则在Linux上读取会出问题
 
 #8. 打开scripts文件夹下的 city_code.json(建议用Notepad++) Ctrl+F 查询你所在的城市代码
 
