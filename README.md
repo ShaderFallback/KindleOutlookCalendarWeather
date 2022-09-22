@@ -40,6 +40,10 @@ https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=52
 
 #11.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
 
+新增支持RSS 订阅新闻显示(如果启用RSS,无需配置日历)
+双Rss链接(每小时切换轮播两个新闻源)
+如果Rss数量超过单页数量,每分钟翻页一次
+
 越狱原贴链接
 https://www.mobileread.com/forums/showthread.php?t=225030
 
