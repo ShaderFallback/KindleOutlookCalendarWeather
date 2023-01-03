@@ -520,14 +520,17 @@ def GetRss():
     global scheduleDic
     global scheduleDic2
     global config
+    rssData = ""
+    rssData2 = ""
     while(True):
         print(GetTime()+'Start Update Rss...', flush=True)
         try:
-            re = requests.get("https://www.solidot.org/index.rss",headers = header)
+            print(config[7][1])
+            re = requests.get(str(config[7][1]),headers = header)
             re.encoding = "utf-8"
             rssData = feedparser.parse(re.text)
 
-            re2 = requests.get("https://www.cnbeta.com/backend.php",headers = header)
+            re2 = requests.get(str(config[7][1]),headers = header)
             re2.encoding = "utf-8"
             rssData2 = feedparser.parse(re2.text)
             print(GetTime()+'Update Rss ok!', flush=True)
@@ -551,6 +554,7 @@ def GetRss():
             
 def NetworkThreading():
     global scheduleDic
+    global config
     while (True):
         timeUpdate = DatetimeNow()
         UpdateTemp(timeUpdate)
