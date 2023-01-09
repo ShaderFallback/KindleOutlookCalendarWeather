@@ -264,7 +264,7 @@ def ReplaceHeightTemp(heighTemp):
     return temp_H
 
 #348 - 640 像素 居中显示
-#居中显示的方法 一个字宽度30像素 例如重479像素开始 多加一个字 少空 15 个像素
+#居中显示的方法 一个字宽度30像素 例如从479像素开始 多加一个字 少空 15 个像素
 def AlignCenter(string,scale,startPixel):
     charsCount = 0
     for s in string:
@@ -359,9 +359,9 @@ def DrawRss(draw):
     drawDicLen = len(drawDic)
     minDicCount += unitCount
     
-    print("--------drawDicLen: " + str(drawDicLen))
-    print("--------nowPage: " + str(nowPage))
-    print("--------minDicCount: " + str(minDicCount))
+    #print("--------drawDicLen: " + str(drawDicLen))
+    #print("--------nowPage: " + str(nowPage))
+    #print("--------minDicCount: " + str(minDicCount))
           
     if(minDicCount > drawDicLen):
         minDicCount = unitCount
@@ -369,10 +369,8 @@ def DrawRss(draw):
         nowPage = 0
     tempY = 0
     for x in range(nowPage,minDicCount):
-        #rss标题
-        print("--------x: " + str(x))
-        print("--------tempY: " + str(tempY))
-        subjectStr = drawDic[x]["subjectStr"]
+        #rss标题    
+        subjectStr = drawDic[min(drawDicLen-1,x)]["subjectStr"]
         draw.text((10,130 + tempY *45),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
         tempY += 1
     nowPage += unitCount
@@ -496,6 +494,7 @@ def UpdateTime():
             else:
                 switchRss = True
             oldIntTimeH = intTimeH
+            print("切换RSS源"+ str(switchRss))
             
         #2点～6点 每小时刷新一次
         if(intTimeH >= 1 and intTimeH <= 6):
@@ -525,12 +524,11 @@ def GetRss():
     while(True):
         print(GetTime()+'Start Update Rss...', flush=True)
         try:
-            print(config[7][1])
             re = requests.get(str(config[7][1]),headers = header)
             re.encoding = "utf-8"
             rssData = feedparser.parse(re.text)
 
-            re2 = requests.get(str(config[7][1]),headers = header)
+            re2 = requests.get(str(config[8][1]),headers = header)
             re2.encoding = "utf-8"
             rssData2 = feedparser.parse(re2.text)
             print(GetTime()+'Update Rss ok!', flush=True)
@@ -539,6 +537,7 @@ def GetRss():
    
         dataLen = len(rssData["entries"])
         dataLen2 = len(rssData2["entries"])
+        print("RSS源长度1:" + str(dataLen) + " 2:"+ str(dataLen2))
         
         scheduleDic = GetRssDic(rssData,dataLen)
         scheduleDic2 = GetRssDic(rssData2,dataLen2)
