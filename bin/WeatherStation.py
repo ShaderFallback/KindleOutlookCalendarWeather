@@ -532,8 +532,8 @@ def NetworkThreading():
         try:
             scheduleDic = GetO365(7)
             print(GetTime() + 'Update Schedule...ok', flush=True)
-        except:
-            print(GetTime() + 'Update Schedule..Fail!', flush=True)
+        except Exception as e:
+            print(GetTime() + 'Update Schedule..Fail!'+ str(e), flush=True)
             elemDic = OrderedDict()
             elemDic["location"] = ""
             elemDic["dateTime"] = DatetimeNow()
