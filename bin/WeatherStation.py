@@ -144,8 +144,9 @@ def GetTemp():
 
         (r.json()['cityInfo']['updateTime'])        #更新时间22
         ]
-    except:
+    except Exception as e:
         tempList = ["---"]*23
+        print(GetTime() + 'Update Weather...Fail'+str(e), flush=True)
         return tempList
     else:
         return tempList
@@ -532,8 +533,8 @@ def GetRss():
             re2.encoding = "utf-8"
             rssData2 = feedparser.parse(re2.text)
             print(GetTime()+'Update Rss ok!', flush=True)
-        except:
-            print(GetTime()+'Update Rss Fail..', flush=True)
+        except Exception as e:
+            print(GetTime()+'Update Rss Fail..'+ str(e), flush=True)
    
         dataLen = len(rssData["entries"])
         dataLen2 = len(rssData2["entries"])
