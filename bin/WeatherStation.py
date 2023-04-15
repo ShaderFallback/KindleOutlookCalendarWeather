@@ -21,7 +21,8 @@ from collections import OrderedDict
 import re
 import threading
 from configparser import ConfigParser
-
+import feedparser
+import math
 fontSize16 = ImageFont.truetype(fontPath, 16)
 fontSize20 = ImageFont.truetype(fontPath, 20)
 fontSize25 = ImageFont.truetype(fontPath, 25)
@@ -47,6 +48,11 @@ cfg.read(rootPath + "/config.ini",encoding="utf-8")
 config = cfg.items("OutlookWeatherCalendar")
 switchRss = True
 nowPage = 0
+minDicCount = 0
+unitCount = int(10) #每页显示新闻数量
+header = {
+    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0"
+}
 
 def GetTime():
     return(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+"   ")
@@ -59,10 +65,11 @@ def DatetimeNow():
     if int(config[4][1]) == 1:
         return datetime.datetime.now() + datetime.timedelta(minutes = 1)
     else:
-        return datetime.datetime.now() + datetime.timedelta(hours = 8)
+        return datetime.datetime.now() #+ datetime.timedelta(hours = 8)
 
 def GetO365(maxCount):
     global scheduleDic
+    global config
                     #这里填写客户端ID                       #API权限中的值(第一次生成时才能看到)
     credentials = (config[0][1], config[1][1])
     account = Account(credentials)
@@ -104,6 +111,7 @@ def GetO365(maxCount):
 
 #获取天气
 def GetTemp():
+    global config
     try:                                                                     # 连接超时,6秒，下载文件超时,7秒
         r = requests.get('http://t.weather.itboy.net/api/weather/city/'+config[2][1],timeout=(6,7)) 
         r.encoding = 'utf-8'
@@ -256,7 +264,7 @@ def ReplaceHeightTemp(heighTemp):
     return temp_H
 
 #348 - 640 像素 居中显示
-#居中显示的方法 一个字宽度30像素 例如重479像素开始 多加一个字 少空 15 个像素
+#居中显示的方法 一个字宽度30像素 例如从479像素开始 多加一个字 少空 15 个像素
 def AlignCenter(string,scale,startPixel):
     charsCount = 0
     for s in string:
@@ -274,8 +282,8 @@ def StrLenCur(text):
     sumLen = (numberLen + letterLen)
     characterLen =  allStrLen - sumLen
     calculateLen = characterLen + int(sumLen/3)
-    tempLen = (int)(sumLen/3) + 12
-    if(calculateLen >= 12):
+    tempLen = (int)(sumLen/3) + 17
+    if(calculateLen >= 17):
         return text[0:tempLen]+"..."
     else:
         return text
@@ -335,33 +343,38 @@ def DrawRss(draw):
     global scheduleDic2
     global switchRss
     global nowPage
-    
+    global unitCount
+    global minDicCount
     drawDic = scheduleDic
     if(switchRss):
         drawDic = scheduleDic
     else:
         drawDic = scheduleDic2
     
-    if(len(drawDic) <= 0):
-        elemDic = OrderedDict()
-        elemDic["location"] = ""
-        elemDic["dateTime"] = DatetimeNow()
-        elemDic["subjectStr"] = "暂无新闻源..."
-        elemDic["bodyStr"] = ""
-        drawDic[0] = elemDic
-        
+    if(len(drawDic) <= 1):
+        draw.text((10,130),"暂无新闻源...", font = fontSize30, fill = 0)
+        return
+
+    #新闻源长度
     drawDicLen = len(drawDic)
-    #要翻的页数
-    pageCount = math.ceil(drawDicLen/7)-1
-    if(nowPage > pageCount):
+    minDicCount += unitCount
+    
+    #print("--------drawDicLen: " + str(drawDicLen))
+    #print("--------nowPage: " + str(nowPage))
+    #print("--------minDicCount: " + str(minDicCount))
+          
+    if(minDicCount > drawDicLen):
+        minDicCount = unitCount
+    if nowPage > (drawDicLen - unitCount):
         nowPage = 0
+    tempY = 0
+    for x in range(nowPage,minDicCount):
+        #rss标题    
+        subjectStr = drawDic[min(drawDicLen-1,x)]["subjectStr"]
+        draw.text((10,130 + tempY *45),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
+        tempY += 1
+    nowPage += unitCount
         
-    for x in range(nowPage * 7 -7,min(nowPage*7,drawDicLen)):
-        #rss标题
-        subjectStr = drawDic[x]["subjectStr"]
-        draw.text((10,145 + x*60),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
-        
-    nowPage +=1
  
 def WeatherStrSwitch(index):
     if index == 0:
@@ -381,22 +394,23 @@ def WeatherSwitch(index):
 
 def DrawWeather(draw,Himage):
     for x in range(0,3):
-        draw.text((570,145 + x *155),WeatherStrSwitch(x), font = fontSize20, fill = 0)
+        draw.text((580,145 + x *155),WeatherStrSwitch(x), font = fontSize20, fill = 0)
         strWeather = tempArray[WeatherSwitch(x)]
         #风力
         windTemp = tempArray[WeatherSwitch(x)+1] + tempArray[WeatherSwitch(x)+2]
-        draw.text((680,145 + x *155),windTemp, font = fontSize20, fill = 0)
+        draw.text((690,145 + x *155),windTemp, font = fontSize20, fill = 0)
         #图标
         pathIcon = UpdateWeatherIcon(strWeather)
         tempTypeIcon = Image.open(rootPath + "/pic/weatherType/" + pathIcon)
-        Himage.paste(tempTypeIcon,(570,180 + x*155))
+        Himage.paste(tempTypeIcon,(580,180 + x*155))
         #天气
-        draw.text((650,188 + x *155),strWeather, font = fontSize25, fill = 0)
+        draw.text((660,188 + x *155),strWeather, font = fontSize25, fill = 0)
         #温度
         forecastTemp = ReplaceLowTemp(tempArray[WeatherSwitch(x)-2])+"-"+ReplaceHeightTemp(tempArray[WeatherSwitch(x)-1]) +" 度"
-        draw.text((640,220 + x *155),forecastTemp, font = fontSize20, fill = 0)
+        draw.text((650,220 + x *155),forecastTemp, font = fontSize20, fill = 0)
 
 def ClearScreen():
+    global config
     if int(config[4][1]) == 0:
         clearPathStr = rootPath.replace("\\","/") +"/black.png"
         fbinkBlackStr = "fbink -c -g file=" + clearPathStr +",w=600,halign=center,valign=center"
@@ -409,6 +423,7 @@ def ClearScreen():
 def UpdateTime():
     global clearCount
     global switchRss
+    global config
     oldIntTimeH = 0
     bgName = ""
     while (True):
@@ -428,7 +443,7 @@ def UpdateTime():
         Himage = Image.new('1', (800, 600), 255)
         draw = ImageDraw.Draw(Himage)
         #显示背景
-        if int(config[6][1] == 1):
+        if int(config[6][1]) == 1:
             bgName = "bgRss.png"
         else:
             bgName = "bg.png"
@@ -437,7 +452,7 @@ def UpdateTime():
         #绘制水平栏
         DrawHorizontalDar(draw,Himage,timeUpdate)
         #绘制日程
-        if int(config[6][1] == 1):
+        if int(config[6][1]) == 1:
             DrawRss(draw)
         else:
             DrawSchedule(draw,timeUpdate)
@@ -464,7 +479,7 @@ def UpdateTime():
                 Himage = Himage.transpose(Image.ROTATE_270)
         else:
             pathStr = rootPath.replace("\\","/") +"/nowTime.png"
-            Himage = Himage.transpose(Image.ROTATE_270)
+            Himage = Himage.transpose(Image.ROTATE_90)
         
         Himage.save(pathStr)
         if int(config[4][1]) == 0:
@@ -473,12 +488,13 @@ def UpdateTime():
         print(GetTime() + 'Update Screen...ok', flush=True)
         
         #每小时切换一次Rss源
-        if(intTimeH != oldIntTimeH)
+        if(intTimeH != oldIntTimeH):
             if(switchRss):
                 switchRss = False
             else:
                 switchRss = True
             oldIntTimeH = intTimeH
+            print("切换RSS源"+ str(switchRss))
             
         #2点～6点 每小时刷新一次
         if(intTimeH >= 1 and intTimeH <= 6):
@@ -502,17 +518,29 @@ def GetRssDic(data,dataLen):
 def GetRss():
     global scheduleDic
     global scheduleDic2
+    global config
+    rssData = ""
+    rssData2 = ""
     while(True):
         print(GetTime()+'Start Update Rss...', flush=True)
-        rssData = feedparser.parse(config[7][1])
-        rssData2 = feedparser.parse(config[8][1])
-        print(GetTime()+'Update Rss ok!', flush=True)
-        
+        try:
+            re = requests.get(str(config[7][1]),headers = header)
+            re.encoding = "utf-8"
+            rssData = feedparser.parse(re.text)
+
+            re2 = requests.get(str(config[8][1]),headers = header)
+            re2.encoding = "utf-8"
+            rssData2 = feedparser.parse(re2.text)
+            print(GetTime()+'Update Rss ok!', flush=True)
+        except:
+            print(GetTime()+'Update Rss Fail..', flush=True)
+   
         dataLen = len(rssData["entries"])
         dataLen2 = len(rssData2["entries"])
+        print("RSS源长度1:" + str(dataLen) + " 2:"+ str(dataLen2))
         
-        scheduleDic[i] = GetRssDic(rssData,dataLen)
-        scheduleDic2[i] = GetRssDic(rssData2,dataLen2)
+        scheduleDic = GetRssDic(rssData,dataLen)
+        scheduleDic2 = GetRssDic(rssData2,dataLen2)
         
         timeUpdate = DatetimeNow()
         UpdateTemp(timeUpdate)
@@ -525,6 +553,7 @@ def GetRss():
             
 def NetworkThreading():
     global scheduleDic
+    global config
     while (True):
         timeUpdate = DatetimeNow()
         UpdateTemp(timeUpdate)
@@ -571,9 +600,10 @@ ClearScreen()
 elemDic = OrderedDict()
 elemDic["location"] = ""
 elemDic["dateTime"] = DatetimeNow()
-elemDic["subjectStr"] = "日程初始化请稍等..."
+elemDic["subjectStr"] = "初始化请稍等..."
 elemDic["bodyStr"] = ""
 scheduleDic[0] = elemDic
+scheduleDic2[0] = elemDic
 
 Himage = Image.new('1', (800, 600), 225)
 if int(config[4][1]) == 1:
@@ -583,7 +613,7 @@ if int(config[4][1]) == 1:
 timeThreading = threading.Thread(target=UpdateTime, args=())
 timeThreading.start()
 
-if int(config[6][1] == 1):
+if int(config[6][1]) == 1:
     networkGetRss = threading.Thread(target=GetRss, args=())
     networkGetRss.start()
 else:
