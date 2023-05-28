@@ -336,7 +336,7 @@ def DrawSchedule(draw,timeUpdate):
         draw.text((40,144 + x*65),str(t.month) +"月"+ str(t.day)+"日", font = fontSize20, fill = fillColor)
         draw.text((40,163 + x*65),str(t.strftime('%H:%M')), font = fontSize20, fill = fillColor)
         #日程标题
-        draw.text((135,145 + x*65),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
+        draw.text((135,145 + x*65),str(subjectStr), font = fontSize30, fill = 0)
         #draw.text((15,80 + x*100),bodyStr, font = fontSize16, fill = 0)
  
 def DrawRss(draw):
@@ -372,7 +372,7 @@ def DrawRss(draw):
     for x in range(nowPage,minDicCount):
         #rss标题    
         subjectStr = drawDic[min(drawDicLen-1,x)]["subjectStr"]
-        draw.text((10,130 + tempY *45),StrLenCur(str(subjectStr)), font = fontSize30, fill = 0)
+        draw.text((10,130 + tempY *45),str(subjectStr), font = fontSize30, fill = 0)
         tempY += 1
     nowPage += unitCount
         
@@ -414,7 +414,8 @@ def ClearScreen():
     global config
     if int(config[4][1]) == 0:
         clearPathStr = rootPath.replace("\\","/") +"/black.png"
-        fbinkBlackStr = "fbink -c -g file=" + clearPathStr +",w=600,halign=center,valign=center"
+        resolution = ",w=" + config[9][1]
+        fbinkBlackStr = "fbink -c -g file=" + clearPathStr + resolution + ",halign=center,valign=center"
         os.system("fbink -c")
         os.system(fbinkBlackStr)
         os.system("fbink -c")
@@ -442,23 +443,30 @@ def UpdateTime():
         intTimeH = int(strtimeH)
         #新建空白图片
         Himage = Image.new('1', (800, 600), 255)
+        Himage2 = Image.new('1', (800, 600), 255)
         draw = ImageDraw.Draw(Himage)
+        drawRss = ImageDraw.Draw(Himage2)
         #显示背景
         if int(config[6][1]) == 1:
             bgName = "bgRss.png"
         else:
             bgName = "bg.png"
         bmp = Image.open(rootPath + '/pic/'+ bgName)
+        bmpAlpha = Image.open(rootPath + '/pic/bgRss_Alpha.png')
+        
         Himage.paste(bmp,(0,0))
         #绘制水平栏
         DrawHorizontalDar(draw,Himage,timeUpdate)
         #绘制日程
         if int(config[6][1]) == 1:
-            DrawRss(draw)
+            DrawRss(drawRss)
         else:
-            DrawSchedule(draw,timeUpdate)
+            DrawSchedule(drawRss,timeUpdate)
+            
         #绘制天气预报
         DrawWeather(draw,Himage)
+        Himage.paste(Himage2,bmpAlpha.getchannel("R"))
+        
         #画线(x开始值，y开始值，x结束值，y结束值)
         #draw.rectangle((280, 90, 280, 290), fill = 0)
         #反向图片
@@ -481,10 +489,14 @@ def UpdateTime():
         else:
             pathStr = rootPath.replace("\\","/") +"/nowTime.png"
             Himage = Himage.transpose(Image.ROTATE_90)
-        
+            
+        resX = int(config[9][1])
+        resY = int(config[10][1])
+        Himage = Himage.resize((resX,resY),resample=Image.NEAREST)
         Himage.save(pathStr)
         if int(config[4][1]) == 0:
-            fbinkStr = "fbink -c -g file=" + pathStr +",w=600,halign=center,valign=center"
+            resolution = ",w=" + config[9][1]
+            fbinkStr = "fbink -c -g file=" + pathStr + resolution +",halign=center,valign=center"
             os.system(fbinkStr)
         print(GetTime() + 'Update Screen...ok', flush=True)
         
@@ -495,7 +507,7 @@ def UpdateTime():
             else:
                 switchRss = True
             oldIntTimeH = intTimeH
-            print("切换RSS源"+ str(switchRss))
+            print(GetTime() +"切换RSS源="+ str(switchRss))
             
         #2点～6点 每小时刷新一次
         if(intTimeH >= 1 and intTimeH <= 6):
@@ -538,7 +550,7 @@ def GetRss():
    
         dataLen = len(rssData["entries"])
         dataLen2 = len(rssData2["entries"])
-        print("RSS源长度1:" + str(dataLen) + " 2:"+ str(dataLen2))
+        print(GetTime()+"RSS源长度:Rss1=" + str(dataLen) + " Rss2 ="+ str(dataLen2))
         
         scheduleDic = GetRssDic(rssData,dataLen)
         scheduleDic2 = GetRssDic(rssData2,dataLen2)
