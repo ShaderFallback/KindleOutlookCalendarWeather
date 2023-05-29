@@ -493,6 +493,8 @@ def UpdateTime():
         resX = int(config[9][1])
         resY = int(config[10][1])
         Himage = Himage.resize((resX,resY),resample=Image.NEAREST)
+        if(int(config[11][1]) == 1):
+            Himage = Himage.transpose(Image.ROTATE_180)
         Himage.save(pathStr)
         if int(config[4][1]) == 0:
             resolution = ",w=" + config[9][1]
