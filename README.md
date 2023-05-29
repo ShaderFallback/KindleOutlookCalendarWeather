@@ -7,6 +7,8 @@
 ![image](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/image/KindleOutlookCalendar_00.jpg)
 ![image](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/image/KindleOutlookCalendar_02.jpg)
 
+**[English](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/README_english.md)**
+
 new 新增支持RSS 订阅新闻显示(如果启用RSS,无需配置日历)
 双Rss链接(每小时切换轮播两个新闻源)
 如果Rss数量超过单页数量,每分钟翻页一次
