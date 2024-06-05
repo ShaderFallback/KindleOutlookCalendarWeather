@@ -29,9 +29,8 @@ https://bookfere.com/post/472.html
 #4.安装Kindle 专用 Python3.9
 https://bookfere.com/post/311.html#p_6
 
-(只看RSS无需配置此步骤)
 -------------------------------------------------
-令牌生成步骤
+令牌生成步骤 (只看RSS无需配置此步骤)
 1.第一步注册应用
 https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
 2.身份验证，添加重定向 网址
