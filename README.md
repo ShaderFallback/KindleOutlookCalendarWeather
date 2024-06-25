@@ -29,6 +29,13 @@ https://bookfere.com/post/472.html
 #4.安装Kindle 专用 Python3.9
 https://bookfere.com/post/311.html#p_6
 
+令牌生成步骤 (只看RSS无需配置此步骤)
+1.第一步注册应用
+https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
+2.身份验证，添加重定向 网址
+https://login.microsoftonline.com/common/oauth2/nativeclient 
+3.记下应用程序（客户端）ID 和 密码值
+
 (只看RSS无需配置此步骤)
 #5. 开通Outlook邮箱的Api权限, 得到客户端ID 和 密码值 (如何获取看这个视频)
 https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=5228a3ffeeee092609a234a5dbf99989

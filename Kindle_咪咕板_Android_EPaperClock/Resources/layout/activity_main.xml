@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:minWidth="25px"
+    android:minHeight="25px"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/linearLayout1"
+    android:background="#ffffffff"
+    android:gravity="center">
+    <LinearLayout
+        android:orientation="horizontal"
+        android:minWidth="25px"
+        android:minHeight="25px"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/linearLayout2"
+        android:gravity="center_vertical|center_horizontal">
+        <TextView
+            android:text="星期日"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/textView1"
+            android:textSize="80px"
+            android:textStyle="normal"
+            android:textAlignment="center"
+            android:textColor="#ff000000"/>
+        <TextView
+            android:text="Sunday"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/textView5"
+            android:textSize="80px"
+            android:textStyle="normal"
+            android:textColor="#ff000000" />
+    </LinearLayout>
+    <TextView
+        android:text="18:43"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView3"
+        android:textSize="240px"
+        android:textAlignment="center"
+        android:textColor="#ff000000"/>
+    <TextView
+        android:text="31 March 2024"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView4"
+        android:textSize="80px"
+        android:textAlignment="center"
+        android:textColor="#ff000000" />
+    <TextView
+        android:text="31日 3月 2024年"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView2"
+        android:textSize="80px"
+        android:textAlignment="center"
+        android:textColor="#ff000000" />
+</LinearLayout>
