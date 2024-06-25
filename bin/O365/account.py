@@ -1,32 +1,66 @@
-from .connection import Connection, Protocol, MSGraphProtocol
-from .connection import oauth_authentication_flow
+from typing import Type, Tuple, Optional, Callable
+from .connection import Connection, Protocol, MSGraphProtocol, MSOffice365Protocol
+from .utils import ME_RESOURCE, consent_input_token
 
 
-class Account(object):
+class Account:
+    connection_constructor: Type = Connection
 
-    def __init__(self, credentials, *, protocol=None, main_resource=None, **kwargs):
-        """ Creates an object which is used to access resources related to the
-        specified credentials
+    def __init__(self, credentials: Tuple[str, str], *,
+                 protocol: Optional[Protocol] = None,
+                 main_resource: Optional[str] = None, **kwargs):
+        """ Creates an object which is used to access resources related to the specified credentials.
 
-        :param tuple credentials: a tuple containing the client_id
-         and client_secret
-        :param Protocol protocol: the protocol to be used in this account
-        :param str main_resource: the resource to be used by this account
-         ('me' or 'users', etc.)
+        :param credentials: a tuple containing the client_id and client_secret
+        :param protocol: the protocol to be used in this account
+        :param main_resource: the resource to be used by this account ('me' or 'users', etc.)
         :param kwargs: any extra args to be passed to the Connection instance
         :raises ValueError: if an invalid protocol is passed
         """
 
         protocol = protocol or MSGraphProtocol  # Defaults to Graph protocol
-        self.protocol = protocol(default_resource=main_resource,
-                                 **kwargs) if isinstance(protocol,
-                                                         type) else protocol
+        if isinstance(protocol, type):
+            protocol = protocol(default_resource=main_resource, **kwargs)
+        self.protocol: Protocol = protocol
 
         if not isinstance(self.protocol, Protocol):
             raise ValueError("'protocol' must be a subclass of Protocol")
 
-        self.con = Connection(credentials, **kwargs)
-        self.main_resource = main_resource or self.protocol.default_resource
+        auth_flow_type = kwargs.get('auth_flow_type', 'authorization')
+        scopes = kwargs.get('scopes', None)  # retrieve scopes
+
+        if auth_flow_type in ('authorization', 'public'):
+            # convert the provided scopes to protocol scopes:
+            if scopes is not None:
+                kwargs['scopes'] = self.protocol.get_scopes_for(scopes)
+        elif auth_flow_type in ('credentials', 'certificate'):
+            # for client credential grant flow solely: add the default scope if it's not provided
+            if not scopes:
+                kwargs['scopes'] = [self.protocol.prefix_scope('.default')]
+            else:
+                raise ValueError(f'Auth flow type "{auth_flow_type}" does not require scopes')
+
+            # set main_resource to blank when it's the 'ME' resource
+            if self.protocol.default_resource == ME_RESOURCE:
+                self.protocol.default_resource = ''
+            if main_resource == ME_RESOURCE:
+                main_resource = ''
+
+        elif auth_flow_type == 'password':
+            kwargs['scopes'] = self.protocol.get_scopes_for(scopes) if scopes else [
+                self.protocol.prefix_scope('.default')]
+
+            # set main_resource to blank when it's the 'ME' resource
+            if self.protocol.default_resource == ME_RESOURCE:
+                self.protocol.default_resource = ''
+            if main_resource == ME_RESOURCE:
+                main_resource = ''
+        else:
+            raise ValueError('"auth_flow_type" must be "authorization", "credentials", "certificate", "password" or '
+                             '"public"')
+
+        self.con = self.connection_constructor(credentials, **kwargs)
+        self.main_resource: str = main_resource or self.protocol.default_resource
 
     def __repr__(self):
         if self.con.auth:
@@ -35,10 +69,10 @@ class Account(object):
             return 'Unidentified Account'
 
     @property
-    def is_authenticated(self):
+    def is_authenticated(self) -> bool:
         """
-        Checks whether the library has the authentication and that is not expired
-        :return: True if authenticated, False otherwise
+        Checks whether the library has the authentication and that is not expired.
+        Return True if authenticated, False otherwise.
         """
         token = self.con.token_backend.token
         if not token:
@@ -46,30 +80,68 @@ class Account(object):
 
         return token is not None and not token.is_expired
 
-    def authenticate(self, *, scopes, **kwargs):
-        """ Performs the oauth authentication flow resulting in a stored token
-        It uses the credentials passed on instantiation
+    def authenticate(self, *, scopes: Optional[list] = None,
+                     handle_consent: Callable = consent_input_token, **kwargs) -> bool:
+        """ Performs the oauth authentication flow using the console resulting in a stored token.
+        It uses the credentials passed on instantiation.
+        Returns True if succeded otherwise False.
 
-        :param list[str] scopes: list of protocol user scopes to be converted
+        :param scopes: list of protocol user scopes to be converted
          by the protocol or scope helpers
+        :param handle_consent: a function to handle the consent process by default just input for the token url
         :param kwargs: other configurations to be passed to the
-         Connection instance
-        :return: Success / Failure
-        :rtype: bool
+         Connection.get_authorization_url and Connection.request_token methods
         """
-        kwargs.setdefault('token_backend', self.con.token_backend)
-        return oauth_authentication_flow(*self.con.auth, scopes=scopes,
-                                         protocol=self.protocol, **kwargs)
+
+        if self.con.auth_flow_type in ('authorization', 'public'):
+            if scopes is not None:
+                if self.con.scopes is not None:
+                    raise RuntimeError('The scopes must be set either at the Account '
+                                       'instantiation or on the account.authenticate method.')
+                self.con.scopes = self.protocol.get_scopes_for(scopes)
+            else:
+                if self.con.scopes is None:
+                    raise ValueError('The scopes are not set. Define the scopes requested.')
+
+            consent_url, _ = self.con.get_authorization_url(**kwargs)
+
+            token_url = handle_consent(consent_url)
+
+            if token_url:
+                result = self.con.request_token(token_url, **kwargs)  # no need to pass state as the session is the same
+                if result:
+                    print('Authentication Flow Completed. Oauth Access Token Stored. You can now use the API.')
+                else:
+                    print('Something go wrong. Please try again.')
+
+                return bool(result)
+            else:
+                print('Authentication Flow aborted.')
+                return False
+
+        elif self.con.auth_flow_type in ('credentials', 'certificate', 'password'):
+            return self.con.request_token(None, requested_scopes=scopes, **kwargs)
+        else:
+            raise ValueError('Connection "auth_flow_type" must be "authorization", "public", "password", "certificate"'
+                             ' or "credentials"')
+
+    def get_current_user(self):
+        """ Returns the current user """
+        if self.con.auth_flow_type in ('authorization', 'public'):
+            directory = self.directory(resource=ME_RESOURCE)
+            return directory.get_current_user()
+        else:
+            return None
 
     @property
     def connection(self):
         """ Alias for self.con
 
-        :rtype: Connection
+        :rtype: type(self.connection_constructor)
         """
         return self.con
 
-    def new_message(self, resource=None):
+    def new_message(self, resource: Optional[str] = None):
         """ Creates a new message to be sent or stored
 
         :param str resource: Custom resource to be used in this message
@@ -80,25 +152,24 @@ class Account(object):
         from .message import Message
         return Message(parent=self, main_resource=resource, is_draft=True)
 
-    def mailbox(self, resource=None):
+    def mailbox(self, resource: Optional[str] = None):
         """ Get an instance to the mailbox for the specified account resource
 
-        :param str resource: Custom resource to be used in this mailbox
+        :param resource: Custom resource to be used in this mailbox
          (Defaults to parent main_resource)
         :return: a representation of account mailbox
-        :rtype: MailBox
+        :rtype: O365.mailbox.MailBox
         """
         from .mailbox import MailBox
         return MailBox(parent=self, main_resource=resource, name='MailBox')
 
-    def address_book(self, *, resource=None, address_book='personal'):
+    def address_book(self, *, resource: Optional[str] = None, address_book: str = 'personal'):
         """ Get an instance to the specified address book for the
         specified account resource
 
-        :param str resource: Custom resource to be used in this address book
+        :param resource: Custom resource to be used in this address book
          (Defaults to parent main_resource)
-        :param str address_book: Choose from 'Personal' or
-         'GAL' (Global Address List)
+        :param address_book: Choose from 'Personal' or 'Directory'
         :return: a representation of the specified address book
         :rtype: AddressBook or GlobalAddressList
         :raises RuntimeError: if invalid address_book is specified
@@ -108,20 +179,27 @@ class Account(object):
 
             return AddressBook(parent=self, main_resource=resource,
                                name='Personal Address Book')
-        elif address_book.lower() == 'gal':
-            from .address_book import GlobalAddressList
+        elif address_book.lower() in ('gal', 'directory'):
+            # for backwards compatibility only
+            from .directory import Directory
 
-            return GlobalAddressList(parent=self)
+            return Directory(parent=self, main_resource=resource)
         else:
             raise RuntimeError(
-                'address_book must be either "personal" '
-                '(resource address book) or "gal" (Global Address List)')
+                'address_book must be either "Personal" '
+                '(resource address book) or "Directory" (Active Directory)')
 
-    def schedule(self, *, resource=None):
+    def directory(self, resource: Optional[str] = None):
+        """ Returns the active directory instance"""
+        from .directory import Directory, USERS_RESOURCE
+
+        return Directory(parent=self, main_resource=resource or USERS_RESOURCE)
+
+    def schedule(self, *, resource: Optional[str] = None):
         """ Get an instance to work with calendar events for the
         specified account resource
 
-        :param str resource: Custom resource to be used in this schedule object
+        :param resource: Custom resource to be used in this schedule object
          (Defaults to parent main_resource)
         :return: a representation of calendar events
         :rtype: Schedule
@@ -129,11 +207,11 @@ class Account(object):
         from .calendar import Schedule
         return Schedule(parent=self, main_resource=resource)
 
-    def storage(self, *, resource=None):
+    def storage(self, *, resource: Optional[str] = None):
         """ Get an instance to handle file storage (OneDrive / Sharepoint)
         for the specified account resource
 
-        :param str resource: Custom resource to be used in this drive object
+        :param resource: Custom resource to be used in this drive object
          (Defaults to parent main_resource)
         :return: a representation of OneDrive File Storage
         :rtype: Storage
@@ -146,11 +224,11 @@ class Account(object):
         from .drive import Storage
         return Storage(parent=self, main_resource=resource)
 
-    def sharepoint(self, *, resource=''):
+    def sharepoint(self, *, resource: str = ''):
         """ Get an instance to read information from Sharepoint sites for the
         specified account resource
 
-        :param str resource: Custom resource to be used in this sharepoint
+        :param resource: Custom resource to be used in this sharepoint
          object (Defaults to parent main_resource)
         :return: a representation of Sharepoint Sites
         :rtype: Sharepoint
@@ -165,7 +243,7 @@ class Account(object):
         from .sharepoint import Sharepoint
         return Sharepoint(parent=self, main_resource=resource)
 
-    def planner(self, *, resource=''):
+    def planner(self, *, resource: str = ''):
         """ Get an instance to read information from Microsoft planner """
 
         if not isinstance(self.protocol, MSGraphProtocol):
@@ -175,3 +253,39 @@ class Account(object):
 
         from .planner import Planner
         return Planner(parent=self, main_resource=resource)
+
+    def tasks(self, *, resource: str = ''):
+        """ Get an instance to read information from Microsoft ToDo """
+
+        if isinstance(self.protocol, MSOffice365Protocol):
+            from .tasks import ToDo
+        else:
+            from .tasks_graph import ToDo as ToDo
+
+        return ToDo(parent=self, main_resource=resource)
+
+    def teams(self, *, resource: str = ''):
+        """ Get an instance to read information from Microsoft Teams """
+
+        if not isinstance(self.protocol, MSGraphProtocol):
+            raise RuntimeError(
+                'teams api only works on Microsoft Graph API')
+
+        from .teams import Teams
+        return Teams(parent=self, main_resource=resource)
+
+    def outlook_categories(self, *, resource: str = ''):
+        """ Returns a Categories object to handle the available Outlook Categories """
+        from .category import Categories
+
+        return Categories(parent=self, main_resource=resource)
+
+    def groups(self, *, resource: str = ''):
+        """ Get an instance to read information from Microsoft Groups """
+
+        if not isinstance(self.protocol, MSGraphProtocol):
+            raise RuntimeError(
+                'groups api only works on Microsoft Graph API')
+
+        from .groups import Groups
+        return Groups(parent=self, main_resource=resource)

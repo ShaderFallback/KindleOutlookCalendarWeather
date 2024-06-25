@@ -1,4 +1,4 @@
-##import logging
+import logging
 from dateutil.parser import parse
 from requests.exceptions import HTTPError
 from .message import Message, RecipientType
@@ -6,7 +6,7 @@ from .utils import ApiComponent, NEXT_LINK_KEYWORD, Pagination, ME_RESOURCE
 
 USERS_RESOURCE = 'users'
 
-#log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class User(ApiComponent):
@@ -174,7 +174,7 @@ class User(ApiComponent):
         try:
             response = self.con.get(url)
         except HTTPError as e:
-            #log.debug('Error while retrieving the user profile photo. Error: {}'.format(e))
+            log.debug('Error while retrieving the user profile photo. Error: {}'.format(e))
             return None
 
         if not response:

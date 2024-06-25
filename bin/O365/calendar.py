@@ -1,8 +1,8 @@
 import calendar
 import datetime as dt
 import logging
+from zoneinfo import ZoneInfo
 
-import pytz
 # noinspection PyPep8Naming
 from bs4 import BeautifulSoup as bs
 from dateutil.parser import parse
@@ -13,6 +13,7 @@ from .utils import AttachableMixin, ImportanceLevel, TrackerSet
 from .utils import BaseAttachments, BaseAttachment
 from .utils import Pagination, NEXT_LINK_KEYWORD, ApiComponent
 from .utils.windows_tz import get_windows_tz
+from .category import Category
 
 log = logging.getLogger(__name__)
 
@@ -70,12 +71,23 @@ class EventType(CaseEnum):
     SeriesMaster = 'seriesMaster'  # the first recurring event of the series
 
 
+class OnlineMeetingProviderType(CaseEnum):
+    Unknown = 'unknown'
+    TeamsForBusiness = 'teamsForBusiness'
+    SkypeForBusiness = 'skypeForBusiness'
+    SkypeForConsumer = 'skypeForConsumer'
+
+
 class EventAttachment(BaseAttachment):
     _endpoints = {'attach': '/events/{id}/attachments'}
 
 
 class EventAttachments(BaseAttachments):
-    _endpoints = {'attachments': '/events/{id}/attachments'}
+    _endpoints = {
+        'attachments': '/events/{id}/attachments',
+        'attachment': '/events/{id}/attachments/{ida}',
+        'create_upload_session': '/events/{id}/attachments/createUploadSession'
+    }
 
     _attachment_constructor = EventAttachment
 
@@ -107,6 +119,10 @@ class EventRecurrence(ApiComponent):
                                                      set())
         self.__first_day_of_week = recurrence_pattern.get(
             self._cc('firstDayOfWeek'), None)
+        if 'type' in recurrence_pattern.keys():
+            if 'weekly' not in recurrence_pattern['type'].lower():
+                self.__first_day_of_week = None
+
         self.__day_of_month = recurrence_pattern.get(self._cc('dayOfMonth'),
                                                      None)
         self.__month = recurrence_pattern.get(self._cc('month'), None)
@@ -133,41 +149,56 @@ class EventRecurrence(ApiComponent):
                 self.__end_date).date() if self.__end_date else None
 
     def __repr__(self):
-        if self.__interval:
-            pattern = 'Daily: every {} day/s'.format(self.__interval)
-            if self.__days_of_week:
-                days = ' or '.join(list(self.__days_of_week))
-                pattern = 'Relative Monthly: {} {} every {} month/s'.format(
-                    self.__index, days, self.__interval)
-                if self.__first_day_of_week:
-                    pattern = 'Weekly: every {} week/s on {}'.format(
-                        self.__interval, days)
-                elif self.__month:
-                    pattern = ('Relative Yearly: {} {} every {} year/s on {}'
-                               ''.format(self.__index, days,
-                                         self.__interval,
-                                         MONTH_NAMES[self.__month - 1]))
-            elif self.__day_of_month:
-                pattern = ('Absolute Monthly: on day {} every {} month/s'
-                           ''.format(self.__day_of_month, self.__interval))
-                if self.__month:
-                    pattern = ('Absolute Yearly: on {} {} every {} year/s'
-                               ''.format(MONTH_NAMES[self.__month - 1],
-                                         self.__day_of_month,
-                                         self.__interval))
-
-            r_range = ''
-            if self.__start_date:
-                r_range = 'Starting on {}'.format(self.__start_date)
-                ends_on = 'with no end'
-                if self.__end_date:
-                    ends_on = 'ending on {}'.format(self.__end_date)
-                elif self.__occurrences:
-                    ends_on = 'up to {} occurrences'.format(self.__occurrences)
-                r_range = '{} {}'.format(r_range, ends_on)
-            return '{}. {}'.format(pattern, r_range)
-        else:
+        if not self.__interval:
             return 'No recurrence enabled'
+
+        pattern = 'Daily: every {} day{}'.format(
+            self.__interval,
+            's' if self.__interval != 1 else '')
+        if self.__days_of_week:
+            days = ' or '.join(list(self.__days_of_week))
+            pattern = 'Relative Monthly: {} {} every {} month{}'.format(
+                self.__index,
+                days,
+                self.__interval,
+                's' if self.__interval != 1 else '')
+            if self.__first_day_of_week:
+                pattern = 'Weekly: every {} week{} on {}'.format(
+                    self.__interval,
+                    's' if self.__interval != 1 else '',
+                    days)
+            elif self.__month:
+                pattern = ('Relative Yearly: {} {} every {} year{} on {}'
+                           ''.format(
+                    self.__index,
+                    days,
+                    self.__interval,
+                    's' if self.__interval != 1 else '',
+                    MONTH_NAMES[self.__month - 1]))
+        elif self.__day_of_month:
+            pattern = ('Absolute Monthly: on day {} every {} month{}'
+                       ''.format(
+                self.__day_of_month,
+                self.__interval,
+                's' if self.__interval != 1 else ''))
+            if self.__month:
+                pattern = ('Absolute Yearly: on {} {} every {} year/s'
+                           ''.format(MONTH_NAMES[self.__month - 1],
+                                     self.__day_of_month,
+                                     self.__interval))
+
+        r_range = ''
+        if self.__start_date:
+            r_range = 'Starting on {}'.format(self.__start_date)
+            ends_on = 'with no end'
+            if self.__end_date:
+                ends_on = 'ending on {}'.format(self.__end_date)
+            elif self.__occurrences:
+                ends_on = 'up to {} occurrence{}'.format(
+                    self.__occurrences,
+                    's' if self.__occurrences != 1 else '')
+            r_range = '{} {}'.format(r_range, ends_on)
+        return '{}. {}'.format(pattern, r_range)
 
     def __str__(self):
         return self.__repr__()
@@ -327,7 +358,7 @@ class EventRecurrence(ApiComponent):
         :setter: set the end date
         :type: date
         """
-        return self.__start_date
+        return self.__end_date
 
     @end_date.setter
     def end_date(self, value):
@@ -514,12 +545,16 @@ class ResponseStatus(ApiComponent):
         self.status = None if self.status == 'none' else EventResponse.from_value(self.status)
         if self.status:
             self.response_time = response_status.get(self._cc('time'), None)
+            if self.response_time == '0001-01-01T00:00:00Z':
+                # consider there's no response time
+                # this way we don't try to convert this Iso 8601 datetime to the
+                #  local timezone which generated parse errors
+                self.response_time = None
             if self.response_time:
                 try:
-                    self.response_time = parse(self.response_time).astimezone(
-                        self.protocol.timezone)
+                    self.response_time = parse(self.response_time).astimezone(self.protocol.timezone)
                 except OverflowError:
-                    log.debug("Couldn't parse event response time: {}".format(self.response_time))
+                    log.debug(f"Couldn't parse event response time: {self.response_time}")
                     self.response_time = None
         else:
             self.response_time = None
@@ -544,6 +579,7 @@ class Attendee:
         :param Response response_status: response status requirement
         :param Event event: event for which to assign the attendee
         """
+        self._untrack = True
         self._address = address
         self._name = name
         self._event = event
@@ -554,6 +590,7 @@ class Attendee:
         self.__attendee_type = AttendeeType.Required
         if attendee_type:
             self.attendee_type = attendee_type
+        self._untrack = False
 
     def __repr__(self):
         if self.name:
@@ -599,7 +636,8 @@ class Attendee:
     def _track_changes(self):
         """ Update the track_changes on the event to reflect a
         needed update on this field """
-        self._event._track_changes.add('attendees')
+        if self._untrack is False:
+            self._event._track_changes.add('attendees')
 
     @property
     def response_status(self):
@@ -655,7 +693,7 @@ class Attendees(ApiComponent):
         return self.__attendees[key]
 
     def __contains__(self, item):
-        return item in {attendee.email for attendee in self.__attendees}
+        return item in {attendee.address for attendee in self.__attendees}
 
     def __len__(self):
         return len(self.__attendees)
@@ -840,11 +878,13 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         self.__modified = parse(self.__modified).astimezone(
             local_tz) if self.__modified else None
 
+        self.__is_all_day = cloud_data.get(cc('isAllDay'), False)
+
         start_obj = cloud_data.get(cc('start'), {})
-        self.__start = self._parse_date_time_time_zone(start_obj)
+        self.__start = self._parse_date_time_time_zone(start_obj, self.__is_all_day)
 
         end_obj = cloud_data.get(cc('end'), {})
-        self.__end = self._parse_date_time_time_zone(end_obj)
+        self.__end = self._parse_date_time_time_zone(end_obj, self.__is_all_day)
 
         self.has_attachments = cloud_data.get(cc('hasAttachments'), False)
         self.__attachments = EventAttachments(parent=self, attachments=[])
@@ -854,12 +894,20 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         self.ical_uid = cloud_data.get(cc('iCalUId'), None)
         self.__importance = ImportanceLevel.from_value(
             cloud_data.get(cc('importance'), 'normal') or 'normal')
-        self.__is_all_day = cloud_data.get(cc('isAllDay'), False)
         self.is_cancelled = cloud_data.get(cc('isCancelled'), False)
         self.is_organizer = cloud_data.get(cc('isOrganizer'), True)
         self.__location = cloud_data.get(cc('location'), {})
         self.locations = cloud_data.get(cc('locations'), [])  # TODO
+
         self.online_meeting_url = cloud_data.get(cc('onlineMeetingUrl'), None)
+        self.__is_online_meeting = cloud_data.get(cc('isOnlineMeeting'), False)
+        self.__online_meeting_provider = OnlineMeetingProviderType.from_value(
+            cloud_data.get(cc('onlineMeetingProvider'), 'teamsForBusiness'))
+        self.online_meeting = cloud_data.get(cc('onlineMeeting'), None)
+        if not self.online_meeting_url and self.is_online_meeting:
+            self.online_meeting_url = self.online_meeting.get(cc('joinUrl'), None) \
+                if self.online_meeting else None
+
         self.__organizer = self._recipient_from_cloud(
             cloud_data.get(cc('organizer'), None), field=cc('organizer'))
         self.__recurrence = EventRecurrence(event=self,
@@ -878,16 +926,23 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         self.series_master_id = cloud_data.get(cc('seriesMasterId'), None)
         self.__show_as = EventShowAs.from_value(cloud_data.get(cc('showAs'), 'busy'))
         self.__event_type = EventType.from_value(cloud_data.get(cc('type'), 'singleInstance'))
+        self.__no_forwarding = False
+        self.web_link = cloud_data.get(cc('webLink'), None)
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         if self.start.date() == self.end.date():
-            return 'Subject: {} (on: {} from: {} to: {})'.format(self.subject, self.start.date(), self.start.time(), self.end.time())
+            return 'Subject: {} (on: {} from: {} to: {})'.format(self.subject, self.start.date(), self.start.time(),
+                                                                 self.end.time())
         else:
-            return 'Subject: {} (starts: {} {} and ends: {} {})'.format(self.subject, self.start.date(), self.start.time(), self.end.date(),
+            return 'Subject: {} (starts: {} {} and ends: {} {})'.format(self.subject, self.start.date(),
+                                                                        self.start.time(), self.end.date(),
                                                                         self.end.time())
+
+    def __eq__(self, other):
+        return self.object_id == other.object_id
 
     def to_api_data(self, restrict_keys=None):
         """ Returns a dict to communicate with the server
@@ -921,6 +976,14 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             cc('responseRequested'): self.__response_requested,
             cc('sensitivity'): cc(self.__sensitivity.value),
             cc('showAs'): cc(self.__show_as.value),
+            cc('isOnlineMeeting'): cc(self.__is_online_meeting),
+            cc('onlineMeetingProvider'): cc(self.__online_meeting_provider.value),
+            cc("SingleValueExtendedProperties"): [
+                {
+                    "id": "Boolean {00020329-0000-0000-C000-000000000046} Name DoNotForward",
+                    "value": cc(self.__no_forwarding),
+                }
+            ],
         }
 
         if self.__recurrence:
@@ -930,6 +993,9 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             data[cc('attachments')] = self.__attachments.to_api_data()
 
         if restrict_keys:
+            if 'attachments' in restrict_keys:
+                self.attachments._update_attachments_to_cloud()
+
             for key in list(data.keys()):
                 if key not in restrict_keys:
                     del data[key]
@@ -1000,9 +1066,10 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             value = dt.datetime(value.year, value.month, value.day)
         if value.tzinfo is None:
             # localize datetime
-            value = self.protocol.timezone.localize(value)
-        elif value.tzinfo != self.protocol.timezone:
-            value = value.astimezone(self.protocol.timezone)
+            value = value.replace(tzinfo=self.protocol.timezone)
+        else:
+            if not isinstance(value.tzinfo, ZoneInfo):
+                raise ValueError('TimeZone data must be set using ZoneInfo objects')
         self.__start = value
         if not self.end:
             self.end = self.__start + dt.timedelta(minutes=30)
@@ -1027,9 +1094,10 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             value = dt.datetime(value.year, value.month, value.day)
         if value.tzinfo is None:
             # localize datetime
-            value = self.protocol.timezone.localize(value)
-        elif value.tzinfo != self.protocol.timezone:
-            value = value.astimezone(self.protocol.timezone)
+            value = value.replace(tzinfo=self.protocol.timezone)
+        else:
+            if not isinstance(value.tzinfo, ZoneInfo):
+                raise ValueError('TimeZone data must be set using ZoneInfo objects')
         self.__end = value
         self._track_changes.add(self._cc('end'))
 
@@ -1230,11 +1298,16 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
     @categories.setter
     def categories(self, value):
         if isinstance(value, list):
-            self.__categories = value
+            self.__categories = []
+            for val in value:
+                if isinstance(val, Category):
+                    self.__categories.append(val.name)
+                else:
+                    self.__categories.append(val)
         elif isinstance(value, str):
             self.__categories = [value]
-        elif isinstance(value, tuple):
-            self.__categories = list(value)
+        elif isinstance(value, Category):
+            self.__categories = [value.name]
         else:
             raise ValueError('categories must be a list')
         self._track_changes.add(self._cc('categories'))
@@ -1242,6 +1315,46 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
     @property
     def event_type(self):
         return self.__event_type
+
+    @property
+    def is_online_meeting(self):
+        """ Status of the online_meeting
+
+        :getter: check is online_meeting enabled or not
+        :setter: enable or disable online_meeting option
+        :type: bool
+        """
+        return self.__is_online_meeting
+
+    @is_online_meeting.setter
+    def is_online_meeting(self, value):
+        self.__is_online_meeting = value
+        self._track_changes.add(self._cc('isOnlineMeeting'))
+
+    @property
+    def online_meeting_provider(self):
+        """ online_meeting_provider of event
+
+        :getter: get current online_meeting_provider configured for the event
+        :setter: set a online_meeting_provider for the event
+        :type: OnlineMeetingProviderType
+        """
+        return self.__online_meeting_provider
+
+    @online_meeting_provider.setter
+    def online_meeting_provider(self, value):
+        self.__online_meeting_provider = (value if isinstance(value, OnlineMeetingProviderType)
+                                          else OnlineMeetingProviderType.from_value(value))
+        self._track_changes.add(self._cc('onlineMeetingProvider'))
+
+    @property
+    def no_forwarding(self):
+        return self.__no_forwarding
+
+    @no_forwarding.setter
+    def no_forwarding(self, value):
+        self.__no_forwarding = value
+        self._track_changes.add('SingleValueExtendedProperties')
 
     def get_occurrences(self, start, end, *, limit=None, query=None, order_by=None, batch=None):
         """
@@ -1261,7 +1374,7 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         :rtype: list[Event] or Pagination
         """
         if self.event_type != EventType.SeriesMaster:
-            # you can only get occurrences if its a seriesMaster
+            # you can only get occurrences if it's a seriesMaster
             return []
 
         url = self.build_url(
@@ -1281,23 +1394,25 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             else:
                 params.update(query.as_params())
 
+        if isinstance(start, dt.date):
+            # Convert an all-day date which only contains year/month/day into a datetime object
+            start = dt.datetime(start.year, start.month, start.day)
         if start.tzinfo is None:
             # if it's a naive datetime, localize the datetime.
-            start = self.protocol.timezone.localize(start)  # localize datetime into local tz
-        if start.tzinfo != pytz.utc:
-            start = start.astimezone(pytz.utc)  # transform local datetime to utc
+            start = start.replace(tzinfo=self.protocol.timezone)  # localize datetime into local tz
 
+        if isinstance(end, dt.date):
+            # Convert an all-day date which only contains year/month/day into a datetime object
+            end = dt.datetime(end.year, end.month, end.day)
         if end.tzinfo is None:
             # if it's a naive datetime, localize the datetime.
-            end = self.protocol.timezone.localize(end)  # localize datetime into local tz
-        if end.tzinfo != pytz.utc:
-            end = end.astimezone(pytz.utc)  # transform local datetime to utc
+            end = end.replace(tzinfo=self.protocol.timezone)  # localize datetime into local tz
 
         params[self._cc('startDateTime')] = start.isoformat()
         params[self._cc('endDateTime')] = end.isoformat()
 
-        response = self.con.get(url, params=params,
-                                headers={'Prefer': 'outlook.timezone="UTC"'})
+        response = self.con.get(url, params=params)
+
         if not response:
             return iter(())
 
@@ -1323,8 +1438,7 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         if self.object_id is None:
             raise RuntimeError('Attempting to delete an unsaved event')
 
-        url = self.build_url(
-            self._endpoints.get('event').format(id=self.object_id))
+        url = self.build_url(self._endpoints.get('event').format(id=self.object_id))
 
         response = self.con.delete(url)
 
@@ -1342,16 +1456,13 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
             # update event
             if not self._track_changes:
                 return True  # there's nothing to update
-            url = self.build_url(
-                self._endpoints.get('event').format(id=self.object_id))
+            url = self.build_url(self._endpoints.get('event').format(id=self.object_id))
             method = self.con.patch
             data = self.to_api_data(restrict_keys=self._track_changes)
         else:
             # new event
             if self.calendar_id:
-                url = self.build_url(
-                    self._endpoints.get('event_calendar').format(
-                        id=self.calendar_id))
+                url = self.build_url(self._endpoints.get('event_calendar').format(id=self.calendar_id))
             else:
                 url = self.build_url(self._endpoints.get('event_default'))
             method = self.con.post
@@ -1376,8 +1487,10 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
                 self.protocol.timezone) if self.__created else None
             self.__modified = parse(self.__modified).astimezone(
                 self.protocol.timezone) if self.__modified else None
+
+            self.ical_uid = event.get(self._cc('iCalUId'), None)
         else:
-            self.__modified = self.protocol.timezone.localize(dt.datetime.now())
+            self.__modified = dt.datetime.now().replace(tzinfo=self.protocol.timezone)
 
         return True
 
@@ -1422,6 +1535,31 @@ class Event(ApiComponent, AttachableMixin, HandleRecipientsMixin):
         url = self.build_url(
             self._endpoints.get('event').format(id=self.object_id))
         url = url + '/decline'
+
+        data = {}
+        if comment and isinstance(comment, str):
+            data[self._cc('comment')] = comment
+        if send_response is False:
+            data[self._cc('sendResponse')] = send_response
+
+        response = self.con.post(url, data=data or None)
+
+        return bool(response)
+
+    def cancel_event(self, comment=None, *, send_response=True):
+        """ Cancel the event
+
+        :param str comment: comment to add
+        :param bool send_response: whether or not to send response back
+        :return: Success / Failure
+        :rtype: bool
+        """
+        if not self.object_id:
+            raise RuntimeError("Can't accept event that doesn't exist")
+
+        url = self.build_url(
+            self._endpoints.get('event').format(id=self.object_id))
+        url = url + '/cancel'
 
         data = {}
         if comment and isinstance(comment, str):
@@ -1511,11 +1649,18 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
         self.can_view_private_items = cloud_data.get(
             self._cc('canViewPrivateItems'), False)
 
+        # Hex color only returns a value when a custom calandar is set
+        # Hex color is read-only, cannot be used to set calendar's color
+        self.hex_color = cloud_data.get(self._cc('hexColor'), None)
+
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         return 'Calendar: {} from {}'.format(self.name, self.owner)
+
+    def __eq__(self, other):
+        return self.calendar_id == other.calendar_id
 
     @property
     def owner(self):
@@ -1535,7 +1680,7 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
         if not self.calendar_id:
             return False
 
-        url = self.build_url(self._endpoints.get('calendar'))
+        url = self.build_url(self._endpoints.get('calendar').format(id=self.calendar_id))
 
         data = {
             self._cc('name'): self.name,
@@ -1571,7 +1716,7 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
 
     def get_events(self, limit=25, *, query=None, order_by=None, batch=None,
                    download_attachments=False, include_recurring=True):
-        """ Get events from the this Calendar
+        """ Get events from this Calendar
 
         :param int limit: max no. of events to get. Over 999 uses batch.
         :param query: applies a OData filter to the request
@@ -1630,7 +1775,8 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
                         query.remove_filter('end')
 
             if start is None or end is None:
-                raise ValueError("When 'include_recurring' is True you must provide a 'start' and 'end' datetimes inside a Query instance.")
+                raise ValueError(
+                    "When 'include_recurring' is True you must provide a 'start' and 'end' datetimes inside a Query instance.")
 
             if end < start:
                 raise ValueError('When using "include_recurring=True", the date asigned to the "end" datetime'
@@ -1648,8 +1794,8 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
             else:
                 params.update(query.as_params())
 
-        response = self.con.get(url, params=params,
-                                headers={'Prefer': 'outlook.timezone="UTC"'})
+        response = self.con.get(url, params=params)
+
         if not response:
             return iter(())
 
@@ -1700,8 +1846,8 @@ class Calendar(ApiComponent, HandleRecipientsMixin):
             params.update(param.as_params())
             by_id = False
 
-        response = self.con.get(url, params=params,
-                                headers={'Prefer': 'outlook.timezone="UTC"'})
+        response = self.con.get(url, params=params)
+
         if not response:
             return None
 
@@ -1722,6 +1868,7 @@ class Schedule(ApiComponent):
         'root_calendars': '/calendars',
         'get_calendar': '/calendars/{id}',
         'default_calendar': '/calendar',
+        'get_availability': '/calendar/getSchedule',
     }
 
     calendar_constructor = Calendar
@@ -1909,3 +2056,43 @@ class Schedule(ApiComponent):
         :rtype: Event
         """
         return self.event_constructor(parent=self, subject=subject)
+
+    def get_availability(self, schedules, start, end, interval=60):
+        """
+        Returns the free/busy availability for a set of users in a given time frame
+        :param list schedules: a list of strings (email addresses)
+        :param datetime start: the start time frame to look for available space
+        :param datetime end: the end time frame to look for available space
+        :param int interval: the number of minutes to look for space
+        """
+        url = self.build_url(self._endpoints.get('get_availability'))
+
+        data = {
+            'startTime': self._build_date_time_time_zone(start),
+            'endTime': self._build_date_time_time_zone(end),
+            'availabilityViewInterval': interval,
+            'schedules': schedules
+        }
+
+        response = self.con.post(url, data=data)
+        if not response:
+            return []
+
+        data = response.json().get('value', [])
+
+        # transform dates and availabilityView
+        availability_view_codes = {
+            '0': 'free',
+            '1': 'tentative',
+            '2': 'busy',
+            '3': 'out of office',
+            '4': 'working elsewhere',
+        }
+        for schedule in data:
+            a_view = schedule.get('availabilityView', '')
+            schedule['availabilityView'] = [availability_view_codes.get(code, 'unkknown') for code in a_view]
+            for item in schedule.get('scheduleItems', []):
+                item['start'] = self._parse_date_time_time_zone(item.get('start'))
+                item['end'] = self._parse_date_time_time_zone(item.get('end'))
+
+        return data

@@ -2,8 +2,9 @@ import datetime as dt
 import logging
 from collections import OrderedDict
 from enum import Enum
+from typing import Union, Dict
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import pytz
 from dateutil.parser import parse
 from stringcase import snakecase
 
@@ -12,6 +13,9 @@ from .decorators import fluent
 
 ME_RESOURCE = 'me'
 USERS_RESOURCE = 'users'
+GROUPS_RESOURCE = 'groups'
+SITES_RESOURCE = 'sites'
+
 
 NEXT_LINK_KEYWORD = '@odata.nextLink'
 
@@ -51,6 +55,15 @@ class OutlookWellKnowFolderNames(Enum):
     SENT = 'SentItems'
     OUTBOX = 'Outbox'
     ARCHIVE = 'Archive'
+    CLUTTER = 'clutter'
+    CONFLICTS = 'conflicts'
+    CONVERSATIONHISTORY = 'conversationhistory'
+    LOCALFAILURES = 'localfailures'
+    RECOVERABLEITEMSDELETIONS = 'recoverableitemsdeletions'
+    SCHEDULED = 'scheduled'
+    SEARCHFOLDERS = 'searchfolders'
+    SERVERFAILURES = 'serverfailures'
+    SYNCISSUES = 'syncissues'
 
 
 class OneDriveWellKnowFolderNames(Enum):
@@ -327,15 +340,10 @@ class ApiComponent:
         self.protocol = protocol() if isinstance(protocol, type) else protocol
         if self.protocol is None:
             raise ValueError('Protocol not provided to Api Component')
-        self.main_resource = (self._parse_resource(
-            main_resource if main_resource is not None
-            else protocol.default_resource))
-        # noinspection PyUnresolvedReferences
-        self._base_url = '{}{}'.format(self.protocol.service_url,
-                                       self.main_resource)
-        if self._base_url.endswith('/'):
-            # when self.main_resource is empty then remove the last slash.
-            self._base_url = self._base_url[:-1]
+        mr, bu = self.build_base_url(main_resource)
+        self.main_resource = mr
+        self._base_url = bu
+
         super().__init__()
 
     def __str__(self):
@@ -348,15 +356,51 @@ class ApiComponent:
     def _parse_resource(resource):
         """ Parses and completes resource information """
         resource = resource.strip() if resource else resource
-        if resource in {ME_RESOURCE, USERS_RESOURCE}:
+        resource_start = list(filter(lambda part: part, resource.split('/')))[0] if resource else resource
+
+        if ':' not in resource_start and '@' not in resource_start:
             return resource
-        elif '@' in resource and not resource.startswith(USERS_RESOURCE):
+
+        if '@' in resource_start:
+            # user resource backup
             # when for example accessing a shared mailbox the
             # resource is set to the email address. we have to prefix
             # the email with the resource 'users/' so --> 'users/email_address'
             return '{}/{}'.format(USERS_RESOURCE, resource)
+        elif resource.startswith('user:'):
+            # user resource shorthand
+            resource = resource.replace('user:', '', 1)
+            return '{}/{}'.format(USERS_RESOURCE, resource)
+        elif resource.startswith('group:'):
+            # group resource shorthand
+            resource = resource.replace('group:', '', 1)
+            return '{}/{}'.format(GROUPS_RESOURCE, resource)
+        elif resource.startswith('site:'):
+            # sharepoint site resource shorthand
+            resource = resource.replace('site:', '', 1)
+            return '{}/{}'.format(SITES_RESOURCE, resource)
         else:
             return resource
+
+    def build_base_url(self, resource):
+        """
+        Builds the base url of this ApiComponent
+        :param str resource: the resource to build the base url
+        """
+        main_resource = self._parse_resource(resource if resource is not None else self.protocol.default_resource)
+        # noinspection PyUnresolvedReferences
+        base_url = '{}{}'.format(self.protocol.service_url, main_resource)
+        if base_url.endswith('/'):
+            # when self.main_resource is empty then remove the last slash.
+            base_url = base_url[:-1]
+        return main_resource, base_url
+
+    def set_base_url(self, resource):
+        """
+        Sets the base urls for this ApiComponent
+        :param str resource: the resource to build the base url
+        """
+        self.main_resource, self._base_url = self.build_base_url(resource)
 
     def build_url(self, endpoint):
         """ Returns a url for a given endpoint using the protocol
@@ -376,10 +420,15 @@ class ApiComponent:
         """ Alias for protocol.convert_case """
         return self.protocol.convert_case(dict_key)
 
-    def _parse_date_time_time_zone(self, date_time_time_zone):
-        """ Parses and convert to protocol timezone a dateTimeTimeZone resource
+    def _parse_date_time_time_zone(self,
+                                   date_time_time_zone: Union[dict, str],
+                                   is_all_day: bool = False) -> Union[dt.datetime, None]:
+        """
+        Parses and convert to protocol timezone a dateTimeTimeZone resource
         This resource is a dict with a date time and a windows timezone
         This is a common structure on Microsoft apis so it's included here.
+
+        Returns a dt.datetime with the datime converted to protocol timezone
         """
         if date_time_time_zone is None:
             return None
@@ -387,35 +436,56 @@ class ApiComponent:
         local_tz = self.protocol.timezone
         if isinstance(date_time_time_zone, dict):
             try:
-                timezone = pytz.timezone(
-                    get_iana_tz(date_time_time_zone.get(self._cc('timeZone'), 'UTC')))
-            except pytz.UnknownTimeZoneError:
+                timezone = get_iana_tz(date_time_time_zone.get(self._cc('timeZone'), 'UTC'))
+            except ZoneInfoNotFoundError:
+                log.debug('TimeZone not found. Using protocol timezone instead.')
                 timezone = local_tz
             date_time = date_time_time_zone.get(self._cc('dateTime'), None)
             try:
-                date_time = timezone.localize(parse(date_time)) if date_time else None
+                date_time = parse(date_time).replace(tzinfo=timezone) if date_time else None
             except OverflowError as e:
-                log.debug('Could not parse dateTimeTimeZone: {}. Error: {}'.format(date_time_time_zone, str(e)))
+                log.debug(f'Could not parse dateTimeTimeZone: {date_time_time_zone}. Error: {e}')
                 date_time = None
 
             if date_time and timezone != local_tz:
-                date_time = date_time.astimezone(local_tz)
+                if not is_all_day:
+                    date_time = date_time.astimezone(local_tz)
+                else:
+                    date_time = date_time.replace(tzinfo=local_tz)
         else:
             # Outlook v1.0 api compatibility (fallback to datetime string)
             try:
-                date_time = local_tz.localize(parse(date_time_time_zone)) if date_time_time_zone else None
+                date_time = parse(date_time_time_zone).replace(tzinfo=local_tz) if date_time_time_zone else None
             except Exception as e:
-                log.debug('Could not parse dateTimeTimeZone: {}. Error: {}'.format(date_time_time_zone, str(e)))
+                log.debug(f'Could not parse dateTimeTimeZone: {date_time_time_zone}. Error: {e}')
                 date_time = None
 
         return date_time
 
-    def _build_date_time_time_zone(self, date_time):
-        """ Converts a datetime to a dateTimeTimeZone resource """
-        timezone = date_time.tzinfo.zone if date_time.tzinfo is not None else None
+    def _build_date_time_time_zone(self, date_time: dt.datetime) -> Dict[str, str]:
+        """ Converts a datetime to a dateTimeTimeZone resource Dict[datetime, windows timezone] """
+        timezone = None
+
+        # extract timezone ZoneInfo from provided datetime
+        if date_time.tzinfo is not None:
+            if isinstance(date_time.tzinfo, ZoneInfo):
+                timezone = date_time.tzinfo
+            elif isinstance(date_time.tzinfo, dt.tzinfo):
+                try:
+                    timezone = ZoneInfo(date_time.tzinfo.tzname(date_time))
+                except ZoneInfoNotFoundError as e:
+                    log.error(f'Error while converting datetime.tzinfo to Zoneinfo: '
+                              f'{date_time.tzinfo.tzname(date_time)}')
+                    raise e
+            else:
+                raise ValueError("Unexpected tzinfo class. Can't convert to ZoneInfo.")
+
+        # convert ZoneInfo timezone (IANA) to a string windows timezone
+        timezone = get_windows_tz(timezone or self.protocol.timezone)
+
         return {
             self._cc('dateTime'): date_time.strftime('%Y-%m-%dT%H:%M:%S'),
-            self._cc('timeZone'): get_windows_tz(timezone or self.protocol.timezone)
+            self._cc('timeZone'): timezone
         }
 
     def new_query(self, attribute=None):
@@ -551,7 +621,10 @@ class Query:
         'to': 'toRecipients/emailAddress/address',
         'start': 'start/DateTime',
         'end': 'end/DateTime',
-        'flag': 'flag/flagStatus'
+        'due': 'duedatetime/DateTime',
+        'reminder': 'reminderdatetime/DateTime',
+        'flag': 'flag/flagStatus',
+        'body': 'body/content'
     }
 
     def __init__(self, attribute=None, *, protocol):
@@ -657,10 +730,12 @@ class Query:
             params['$filter'] = self.get_filters()
         if self.has_order:
             params['$orderby'] = self.get_order()
-        if self.has_selects:
-            params['$select'] = self.get_selects()
-        if self.has_expands:
+        if self.has_expands and not self.has_selects:
             params['$expand'] = self.get_expands()
+        if self.has_selects and not self.has_expands:
+            params['$select'] = self.get_selects()
+        if self.has_expands and self.has_selects:
+            params['$expand'] = '{}($select={})'.format(self.get_expands(), self.get_selects())
         if self._search:
             params['$search'] = self._search
             params.pop('$filter', None)
@@ -730,27 +805,9 @@ class Query:
         # in the order_by first
         if not self.has_order:
             return None
-        filter_order_clauses = OrderedDict([(filter_attr[0], None)
-                                            for filter_attr in self._filters
-                                            if isinstance(filter_attr, list)])
 
-        # any order_by attribute that appears in the filters is ignored
-        order_by_dict = self._order_by.copy()
-        for filter_oc in filter_order_clauses.keys():
-            direction = order_by_dict.pop(filter_oc, None)
-            filter_order_clauses[filter_oc] = direction
-
-        filter_order_clauses.update(
-            order_by_dict)  # append any remaining order_by clause
-
-        if filter_order_clauses:
-            return ','.join(['{} {}'.format(attribute,
-                                            direction if direction else '')
-                            .strip()
-                             for attribute, direction in
-                             filter_order_clauses.items()])
-        else:
-            return None
+        return ','.join(['{} {}'.format(attribute, direction or '').strip()
+                         for attribute, direction in self._order_by.items()])
 
     def get_selects(self):
         """ Returns the result select clause
@@ -856,6 +913,16 @@ class Query:
         self._attribute = self._get_mapping(attribute)
         return self
 
+    @fluent
+    def on_list_field(self, field):
+        """ Apply query on a list field, to be used along with chain()
+
+        :param str field: field name (note: name is case sensitive)
+        :rtype: Query
+        """
+        self._attribute = 'fields/' + field
+        return self
+
     def remove_filter(self, filter_attr):
         """ Removes a filter given the attribute name """
         filter_attr = self._get_mapping(filter_attr)
@@ -902,11 +969,7 @@ class Query:
             if isinstance(word, dt.datetime):
                 if word.tzinfo is None:
                     # if it's a naive datetime, localize the datetime.
-                    word = self.protocol.timezone.localize(
-                        word)  # localize datetime into local tz
-                if word.tzinfo != pytz.utc:
-                    word = word.astimezone(
-                        pytz.utc)  # transform local datetime to utc
+                    word = word.replace(tzinfo=self.protocol.timezone)  # localize datetime into local tz
             if '/' in self._attribute:
                 # TODO: this is a fix for the case when the parameter
                 #  filtered is a string instead a dateTimeOffset
@@ -922,6 +985,8 @@ class Query:
                     word.isoformat())  # convert datetime to isoformat
         elif isinstance(word, bool):
             word = str(word).lower()
+        elif word is None:
+            word = 'null'
         return word
 
     @staticmethod

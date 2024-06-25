@@ -1,13 +1,54 @@
-##import logging
+import logging
+from enum import Enum
 
 from dateutil.parser import parse
 
 from .utils import ApiComponent, NEXT_LINK_KEYWORD, Pagination
 
-##log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 MAX_BATCH_CHAT_MESSAGES = 50
+MAX_BATCH_CHATS = 50
 
+
+class Availability(Enum):
+    """Valid values for Availability."""
+
+    AVAILABLE = "Available"
+    BUSY = "Busy"
+    AWAY = "Away"
+    DONOTDISTURB = "DoNotDisturb"
+
+
+class Activity(Enum):
+    """Valid values for Activity."""
+
+    AVAILABLE = "Available"
+    INACALL = "InACall"
+    INACONFERENCECALL = "InAConferenceCall"
+    AWAY = "Away"
+    PRESENTING = "Presenting"
+
+class PreferredAvailability(Enum):
+    """Valid values for Availability."""
+
+    AVAILABLE = "Available"
+    BUSY = "Busy"
+    DONOTDISTURB = "DoNotDisturb"
+    BERIGHTBACK = "BeRightBack"
+    AWAY = "Away"
+    OFFLINE = "Offline"
+
+
+class PreferredActivity(Enum):
+    """Valid values for Activity."""
+
+    AVAILABLE = "Available"
+    BUSY = "Busy"
+    DONOTDISTURB = "DoNotDisturb"
+    BERIGHTBACK = "BeRightBack"
+    AWAY = "Away"
+    OFFWORK = "OffWork"
 
 class ConversationMember(ApiComponent):
     """ A Microsoft Teams conversation member """
@@ -666,13 +707,16 @@ class Teams(ApiComponent):
     """ A Microsoft Teams class"""
 
     _endpoints = {
-        'get_my_presence': '/me/presence',
-        'get_my_teams': '/me/joinedTeams',
-        'get_channels': '/teams/{team_id}/channels',
-        'create_channel': '/teams/{team_id}/channels',
-        'get_channel': '/teams/{team_id}/channels/{channel_id}',
-        'get_apps_in_team': '/teams/{team_id}/installedApps?$expand=teamsAppDefinition',
-        'get_my_chats': '/me/chats'
+        "get_my_presence": "/me/presence",
+        "get_user_presence": "/users/{user_id}/presence",
+        "set_my_presence": "/me/presence/setPresence",
+        "set_my_user_preferred_presence": "/me/presence/setUserPreferredPresence",
+        "get_my_teams": "/me/joinedTeams",
+        "get_channels": "/teams/{team_id}/channels",
+        "create_channel": "/teams/{team_id}/channels",
+        "get_channel": "/teams/{team_id}/channels/{channel_id}",
+        "get_apps_in_team": "/teams/{team_id}/installedApps?$expand=teamsAppDefinition",
+        "get_my_chats": "/me/chats"
     }
     presence_constructor = Presence
     team_constructor = Team
@@ -726,6 +770,80 @@ class Teams(ApiComponent):
         return self.presence_constructor(parent=self,
                                          **{self._cloud_data_key: data})
 
+    def set_my_presence(
+        self,
+        session_id,
+        availability: Availability,
+        activity: Activity,
+        expiration_duration,
+    ):
+        """Sets my presence status
+
+        :param session_id: the session/capplication id.
+        :param availability: the availability.
+        :param activity: the activity.
+        :param activity: the expiration_duration when status will be unset.
+        :rtype: Presence
+        """
+
+        url = self.build_url(self._endpoints.get("set_my_presence"))
+
+        data = {
+            "sessionId": session_id,
+            "availability": availability.value,
+            "activity": activity.value,
+            "expirationDutaion": expiration_duration,
+        }
+
+        response = self.con.post(url, data=data)
+
+        return self.get_my_presence() if response else None
+
+    def set_my_user_preferred_presence(
+        self,
+        availability: PreferredAvailability,
+        activity: PreferredActivity,
+        expiration_duration,
+    ):
+        """Sets my user preferred presence status
+
+        :param availability: the availability.
+        :param activity: the activity.
+        :param activity: the expiration_duration when status will be unset.
+        :rtype: Presence
+        """
+
+        url = self.build_url(self._endpoints.get("set_my_user_preferred_presence"))
+
+        data = {
+            "availability": availability.value,
+            "activity": activity.value,
+            "expirationDutaion": expiration_duration,
+        }
+
+        response = self.con.post(url, data=data)
+
+        return self.get_my_presence() if response else None
+
+    def get_user_presence(self, user_id=None, email=None):
+        """Returns specific user availability and activity
+
+        :rtype: Presence
+        """
+
+        url = self.build_url(
+            self._endpoints.get("get_user_presence").format(user_id=user_id)
+        )
+
+        response = self.con.get(url)
+
+        if not response:
+            return None
+
+        data = response.json()
+
+        return self.presence_constructor(parent=self, **{self._cloud_data_key: data})
+
     def get_my_teams(self):
         """ Returns a list of teams that I am in
 
@@ -744,22 +862,35 @@ class Teams(ApiComponent):
             self.team_constructor(parent=self, **{self._cloud_data_key: site})
             for site in data.get('value', [])]
 
-    def get_my_chats(self):
+    def get_my_chats(self, limit=None, batch=None):
         """ Returns a list of chats that I am in
-
-        :rtype: list[Chat]
+        :param int limit: number of chats to retrieve
+        :param int batch: number of chats to be in each data set
+        :rtype: list[ChatMessage] or Pagination of Chat
         """
-
         url = self.build_url(self._endpoints.get('get_my_chats'))
-        response = self.con.get(url)
 
+        if not batch and (limit is None or limit > MAX_BATCH_CHATS):
+            batch = MAX_BATCH_CHATS
+
+        params = {'$top': batch if batch else limit}
+        response = self.con.get(url, params=params)
         if not response:
             return []
 
         data = response.json()
-        return [
-            self.chat_constructor(parent=self, **{self._cloud_data_key: chat})
-            for chat in data.get('value', [])]
+        next_link = data.get(NEXT_LINK_KEYWORD, None)
+
+        chats = [self.chat_constructor(parent=self,
+                                             **{self._cloud_data_key: message})
+                    for message in data.get('value', [])]
+
+        if batch and next_link:
+            return Pagination(parent=self, data=chats,
+                              constructor=self.chat_constructor,
+                              next_link=next_link, limit=limit)
+        else:
+            return chats
 
     def get_channels(self, team_id):
         """ Returns a list of channels of a specified team

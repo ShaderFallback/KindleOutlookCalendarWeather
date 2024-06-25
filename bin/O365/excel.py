@@ -3,10 +3,10 @@
 Note: Support for workbooks stored in OneDrive Consumer platform is still not available.
 At this time, only the files stored in business platform is supported by Excel REST APIs.
 """
-
 import logging
 import datetime as dt
 from urllib.parse import quote
+import re
 
 from stringcase import snakecase
 
@@ -550,6 +550,9 @@ class Range(ApiComponent):
     def __repr__(self):
         return 'Range address: {}'.format(self.address)
 
+    def __eq__(self, other):
+        return self.object_id == other.object_id
+
     @property
     def column_hidden(self):
         return self._column_hidden
@@ -902,6 +905,9 @@ class NamedRange(ApiComponent):
     def __repr__(self):
         return 'Named Range: {} ({})'.format(self.name, self.value)
 
+    def __eq__(self, other):
+        return self.object_id == other.object_id
+
     def get_range(self):
         """ Returns the Range instance this named range refers to """
         url = self.build_url(self._endpoints.get('get_range'))
@@ -960,7 +966,7 @@ class TableRow(ApiComponent):
             getattr(parent, 'main_resource', None) if parent else None)
 
         # append the encoded column path
-        main_resource = '{}/rows/{}'.format(main_resource, self.object_id)
+        main_resource = '{}/rows/itemAt(index={})'.format(main_resource, self.object_id)
 
         super().__init__(
             protocol=parent.protocol if parent else kwargs.get('protocol'),
@@ -974,6 +980,9 @@ class TableRow(ApiComponent):
 
     def __repr__(self):
         return 'Row number: {}'.format(self.index)
+
+    def __eq__(self, other):
+        return self.object_id == other.object_id
 
     def get_range(self):
         """ Gets the range object associated with the entire row """
@@ -1043,6 +1052,9 @@ class TableColumn(ApiComponent):
 
     def __repr__(self):
         return 'Table Column: {}'.format(self.name)
+
+    def __eq__(self, other):
+        return self.object_id == other.object_id
 
     def delete(self):
         """ Deletes this table Column """
@@ -1131,10 +1143,10 @@ class Table(ApiComponent):
         'add_column': '/columns/add',
         'get_rows': '/rows',
         'get_row': '/rows/{id}',
-        'delete_row': '/rows/{id}/delete',
+        'delete_row': '/rows/$/itemAt(index={id})',
         'get_row_index': '/rows/itemAt',
         'add_rows': '/rows/add',
-        'delete': '/delete',
+        'delete': '/',
         'data_body_range': '/dataBodyRange',
         'header_row_range': '/headerRowRange',
         'total_row_range': '/totalRowRange',
@@ -1186,6 +1198,9 @@ class Table(ApiComponent):
     def __repr__(self):
         return 'Table: {}'.format(self.name)
 
+    def __eq__(self, other):
+        return self.object_id == other.object_id
+
     def get_columns(self, *, top=None, skip=None):
         """
         Return the columns of this table
@@ -1216,7 +1231,7 @@ class Table(ApiComponent):
         :param id_or_name: the id or name of the column
         :return: WorkBookTableColumn
         """
-        url = self.build_url(self._endpoints.get('get_column').format(quote(id_or_name)))
+        url = self.build_url(self._endpoints.get('get_column').format(id=quote(id_or_name)))
         response = self.session.get(url)
 
         if not response:
@@ -1333,7 +1348,7 @@ class Table(ApiComponent):
         :return bool: Success or Failure
         """
         url = self.build_url(self._endpoints.get('delete_row').format(id=index))
-        return bool(self.session.post(url))
+        return bool(self.session.delete(url))
 
     def add_rows(self, values=None, index=None):
         """
@@ -1378,9 +1393,9 @@ class Table(ApiComponent):
         data = {}
         if name:
             data['name'] = name
-        if show_headers:
+        if show_headers is not None:
             data['showHeaders'] = show_headers
-        if show_totals:
+        if show_totals is not None:
             data['showTotals'] = show_totals
         if style:
             data['style'] = style
@@ -1400,7 +1415,7 @@ class Table(ApiComponent):
     def delete(self):
         """ Deletes this table """
         url = self.build_url(self._endpoints.get('delete'))
-        return bool(self.session.post(url))
+        return bool(self.session.delete(url))
 
     def _get_range(self, endpoint_name):
         """ Returns a Range based on the endpoint name """
@@ -1508,6 +1523,9 @@ class WorkSheet(ApiComponent):
     def __repr__(self):
         return 'Worksheet: {}'.format(self.name)
 
+    def __eq__(self, other):
+        return self.object_id == other.object_id
+
     def delete(self):
         """ Deletes this worksheet """
         return bool(self.session.delete(self.build_url('')))
@@ -1589,6 +1607,7 @@ class WorkSheet(ApiComponent):
         """
         url = self.build_url(self._endpoints.get('get_range'))
         if address is not None:
+            address = self.remove_sheet_name_from_address(address)
             url = "{}(address='{}')".format(url, address)
         response = self.session.get(url)
         if not response:
@@ -1644,6 +1663,76 @@ class WorkSheet(ApiComponent):
             return None
         return self.named_range_constructor(parent=self, **{self._cloud_data_key: response.json()})
 
+    @staticmethod
+    def remove_sheet_name_from_address(address):
+        """ Removes the sheet name from a given address """
+        compiled = re.compile('([a-zA-Z]+[0-9]+):.*?([a-zA-Z]+[0-9]+)')
+        result = compiled.search(address)
+        if result:
+            return ':'.join(result.groups())
+        else:
+            return address
+
+
+class WorkbookApplication(ApiComponent):
+    _endpoints = {
+        'get_details': '/application',
+        'post_calculation': '/application/calculate'
+    }
+
+    def __init__(self, workbook):
+        """
+        Create A WorkbookApplication representation
+
+        :param workbook: A workbook object, of the workboook that you want to interact with
+        """
+
+        if not isinstance(workbook, WorkBook):
+            raise ValueError("workbook was not an accepted type: Workbook")
+
+        self.parent = workbook  # Not really needed currently, but saving in case we need it for future functionality
+        self.con = workbook.session.con
+        main_resource = getattr(workbook, 'main_resource', None)
+
+        super().__init__(
+            protocol=workbook.protocol,
+            main_resource=main_resource)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return 'WorkbookApplication for Workbook: {}'.format(self.workbook_id or 'Not set')
+
+    def __bool__(self):
+        return bool(self.parent)
+
+    def get_details(self):
+        """ Gets workbookApplication """
+        url = self.build_url(self._endpoints.get('get_details'))
+        response = self.con.get(url)
+
+        if not response:
+            return None
+        return response.json()
+
+    def run_calculations(self, calculation_type):
+        if calculation_type not in ["Recalculate", "Full", "FullRebuild"]:
+            raise ValueError("calculation type must be one of: Recalculate, Full, FullRebuild")
+
+        url = self.build_url(self._endpoints.get('post_calculation'))
+        data = {"calculationType": calculation_type}
+        headers = {"Content-type": "application/json"}
+
+        if(self.parent.session.session_id):
+            headers['workbook-session-id'] = self.parent.session.session_id
+
+        response = self.con.post(url, headers=headers, data=data)
+        if not response:
+            return False
+
+        return response.ok
+
 
 class WorkBook(ApiComponent):
     _endpoints = {
@@ -1657,6 +1746,8 @@ class WorkBook(ApiComponent):
         'add_named_range': '/names/add',
         'add_named_range_f': '/names/addFormulaLocal',
     }
+
+    application_constructor = WorkbookApplication
     worksheet_constructor = WorkSheet
     table_constructor = Table
     named_range_constructor = NamedRange
@@ -1687,12 +1778,16 @@ class WorkBook(ApiComponent):
             self.session.create_session()
 
         self.name = file_item.name
+        self.object_id = 'Workbook:{}'.format(file_item.object_id)  # Mangle the object id
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         return 'Workbook: {}'.format(self.name)
+
+    def __eq__(self, other):
+        return self.object_id == other.object_id
 
     def get_tables(self):
         """ Returns a collection of this workbook tables"""
@@ -1719,6 +1814,9 @@ class WorkBook(ApiComponent):
         if not response:
             return None
         return self.table_constructor(parent=self, **{self._cloud_data_key: response.json()})
+
+    def get_workbookapplication(self):
+        return self.application_constructor(self)
 
     def get_worksheets(self):
         """ Returns a collection of this workbook worksheets"""
@@ -1758,7 +1856,7 @@ class WorkBook(ApiComponent):
 
     def invoke_function(self, function_name, **function_params):
         """ Invokes an Excel Function """
-        url = self.build_url(self._endpoints.get('function').format(function_name))
+        url = self.build_url(self._endpoints.get('function').format(name=function_name))
         response = self.session.post(url, data=function_params)
         if not response:
             return None

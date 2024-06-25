@@ -1,23 +1,17 @@
 import datetime as dt
 import logging
-from enum import Enum
 
 from dateutil.parser import parse
+from requests.exceptions import HTTPError
 
 from .utils import Recipients
 from .utils import AttachableMixin, TrackerSet
 from .utils import Pagination, NEXT_LINK_KEYWORD, ApiComponent
-from .message import Message
+from .message import Message, RecipientType
+from .category import Category
 
-GAL_MAIN_RESOURCE = 'users'
 
 log = logging.getLogger(__name__)
-
-
-class RecipientType(Enum):
-    TO = 'to'
-    CC = 'cc'
-    BCC = 'bcc'
 
 
 class Contact(ApiComponent, AttachableMixin):
@@ -26,7 +20,9 @@ class Contact(ApiComponent, AttachableMixin):
     _endpoints = {
         'contact': '/contacts',
         'root_contact': '/contacts/{id}',
-        'child_contact': '/contactFolders/{folder_id}/contacts'
+        'child_contact': '/contactFolders/{folder_id}/contacts',
+        'photo': '/contacts/{id}/photo/$value',
+        'photo_size': '/contacts/{id}/photos/{size}/$value',
     }
 
     message_constructor = Message
@@ -65,12 +61,13 @@ class Contact(ApiComponent, AttachableMixin):
         self.__modified = cloud_data.get(cc('lastModifiedDateTime'), None)
 
         local_tz = self.protocol.timezone
-        self.__created = parse(self.created).astimezone(
+        self.__created = parse(self.__created).astimezone(
             local_tz) if self.__created else None
-        self.__modified = parse(self.modified).astimezone(
+        self.__modified = parse(self.__modified).astimezone(
             local_tz) if self.__modified else None
 
         self.__display_name = cloud_data.get(cc('displayName'), '')
+        self.__fileAs = cloud_data.get(cc('fileAs'), '')
         self.__name = cloud_data.get(cc('givenName'), '')
         self.__surname = cloud_data.get(cc('surname'), '')
 
@@ -94,13 +91,15 @@ class Contact(ApiComponent, AttachableMixin):
             # a Contact from OneDrive?
             self.__emails.add(email)
         self.__business_address = cloud_data.get(cc('businessAddress'), {})
-        self.__home_address = cloud_data.get(cc('homesAddress'), {})
+        self.__home_address = cloud_data.get(cc('homeAddress'), {})
         self.__other_address = cloud_data.get(cc('otherAddress'), {})
         self.__preferred_language = cloud_data.get(cc('preferredLanguage'),
                                                    None)
 
         self.__categories = cloud_data.get(cc('categories'), [])
         self.__folder_id = cloud_data.get(cc('parentFolderId'), None)
+
+        self.__personal_notes = cloud_data.get(cc('personalNotes'), '')
 
         # When using Users endpoints (GAL)
         # Missing keys: ['mail', 'userPrincipalName']
@@ -111,6 +110,15 @@ class Contact(ApiComponent, AttachableMixin):
         if user_principal_name and user_principal_name not in self.emails:
             self.emails.add(user_principal_name)
         self.__emails.untrack = False
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return self.display_name or self.full_name or 'Unknown Name'
+
+    def __eq__(self, other):
+        return self.object_id == other.object_id
 
     @property
     def created(self):
@@ -137,12 +145,27 @@ class Contact(ApiComponent, AttachableMixin):
         :type: str
         """
         return self.__display_name
-
+        
     @display_name.setter
     def display_name(self, value):
         self.__display_name = value
         self._track_changes.add(self._cc('displayName'))
+    
+    @property
+    def fileAs(self):
+        """ File As
 
+        :getter: Get the fileAs of the contact
+        :setter: Update the fileAs
+        :type: str
+        """
+        return self.__fileAs
+        
+    @fileAs.setter
+    def fileAs(self, value):
+        self.__fileAs = value
+        self._track_changes.add(self._cc('fileAs'))
+        
     @property
     def name(self):
         """ First Name
@@ -362,7 +385,7 @@ class Contact(ApiComponent, AttachableMixin):
         if not isinstance(value, dict):
             raise ValueError('"home_address" must be dict')
         self.__home_address = value
-        self._track_changes.add(self._cc('homesAddress'))
+        self._track_changes.add(self._cc('homeAddress'))
 
     @property
     def other_address(self):
@@ -409,14 +432,28 @@ class Contact(ApiComponent, AttachableMixin):
     @categories.setter
     def categories(self, value):
         if isinstance(value, list):
-            self.__categories = value
+            self.__categories = []
+            for val in value:
+                if isinstance(val, Category):
+                    self.__categories.append(val.name)
+                else:
+                    self.__categories.append(val)
         elif isinstance(value, str):
             self.__categories = [value]
-        elif isinstance(value, tuple):
-            self.__categories = list(value)
+        elif isinstance(value, Category):
+            self.__categories = [value.name]
         else:
             raise ValueError('categories must be a list')
         self._track_changes.add(self._cc('categories'))
+
+    @property
+    def personal_notes(self):
+        return self.__personal_notes
+
+    @personal_notes.setter
+    def personal_notes(self, value):
+        self.__personal_notes = value
+        self._track_changes.add(self._cc('personalNotes'))
 
     @property
     def folder_id(self):
@@ -425,12 +462,6 @@ class Contact(ApiComponent, AttachableMixin):
         :rtype: str
         """
         return self.__folder_id
-
-    def __str__(self):
-        return self.__repr__()
-
-    def __repr__(self):
-        return self.display_name or self.full_name or 'Unknown Name'
 
     def to_api_data(self, restrict_keys=None):
         """ Returns a dictionary in cloud format
@@ -441,6 +472,7 @@ class Contact(ApiComponent, AttachableMixin):
 
         data = {
             cc('displayName'): self.__display_name,
+            cc('fileAs'): self.__fileAs,
             cc('givenName'): self.__name,
             cc('surname'): self.__surname,
             cc('title'): self.__title,
@@ -455,9 +487,10 @@ class Contact(ApiComponent, AttachableMixin):
                                     self._cc('address'): recipient.address}
                                    for recipient in self.emails],
             cc('businessAddress'): self.__business_address,
-            cc('homesAddress'): self.__home_address,
+            cc('homeAddress'): self.__home_address,
             cc('otherAddress'): self.__other_address,
-            cc('categories'): self.__categories
+            cc('categories'): self.__categories,
+            cc('personalNotes'): self.__personal_notes,
         }
 
         if restrict_keys:
@@ -531,7 +564,7 @@ class Contact(ApiComponent, AttachableMixin):
             self.__modified = parse(self.modified).astimezone(
                 local_tz) if self.__modified else None
         else:
-            self.__modified = self.protocol.timezone.localize(dt.datetime.now())
+            self.__modified = dt.datetime.now().replace(tzinfo=self.protocol.timezone)
 
         return True
 
@@ -545,10 +578,6 @@ class Contact(ApiComponent, AttachableMixin):
         :return: newly created message
         :rtype: Message or None
         """
-        if self.main_resource == GAL_MAIN_RESOURCE:
-            # preventing the contact lookup to explode for big organizations..
-            raise RuntimeError('Sending a message to all users within an '
-                               'Organization is not allowed')
 
         if isinstance(recipient_type, str):
             recipient_type = RecipientType(recipient_type)
@@ -564,12 +593,42 @@ class Contact(ApiComponent, AttachableMixin):
 
         return new_message
 
+    def get_profile_photo(self, size=None):
+        """ Returns this contact profile photo
+        :param str size: 48x48, 64x64, 96x96, 120x120, 240x240,
+         360x360, 432x432, 504x504, and 648x648
+        """
+        if size is None:
+            url = self.build_url(self._endpoints.get('photo').format(id=self.object_id))
+        else:
+            url = self.build_url(self._endpoints.get('photo_size').format(id=self.object_id, size=size))
+
+        try:
+            response = self.con.get(url)
+        except HTTPError as e:
+            log.debug('Error while retrieving the contact profile photo. Error: {}'.format(e))
+            return None
+
+        if not response:
+            return None
+
+        return response.content
+
+    def update_profile_photo(self, photo):
+        """ Updates this contact profile photo
+        :param bytes photo: the photo data in bytes
+        """
+
+        url = self.build_url(self._endpoints.get('photo').format(id=self.object_id))
+        response = self.con.patch(url, data=photo, headers={'Content-type': 'image/jpeg'})
+
+        return bool(response)
+
 
 class BaseContactFolder(ApiComponent):
     """ Base Contact Folder Grouping Functionality """
 
     _endpoints = {
-        'gal': '',
         'root_contacts': '/contacts',
         'folder_contacts': '/contactFolders/{id}/contacts',
         'get_folder': '/contactFolders/{id}',
@@ -623,15 +682,11 @@ class BaseContactFolder(ApiComponent):
     def __repr__(self):
         return 'Contact Folder: {}'.format(self.name)
 
+    def __eq__(self, other):
+        return self.folder_id == other.folder_id
+
     def get_contacts(self, limit=100, *, query=None, order_by=None, batch=None):
         """ Gets a list of contacts from this address book
-
-        When querying the Global Address List the Users endpoint will be used.
-        Only a limited set of information will be available unless you have
-        access to scope 'User.Read.All' which requires App Administration
-        Consent.
-
-        Also using endpoints has some limitations on the querying capabilities.
 
         To use query an order_by check the OData specification here:
         http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/
@@ -650,16 +705,12 @@ class BaseContactFolder(ApiComponent):
         :rtype: list[Contact] or Pagination
         """
 
-        if self.main_resource == GAL_MAIN_RESOURCE:
-            # using Users endpoint to access the Global Address List
-            url = self.build_url(self._endpoints.get('gal'))
+        if self.root:
+            url = self.build_url(self._endpoints.get('root_contacts'))
         else:
-            if self.root:
-                url = self.build_url(self._endpoints.get('root_contacts'))
-            else:
-                url = self.build_url(
-                    self._endpoints.get('folder_contacts').format(
-                        id=self.folder_id))
+            url = self.build_url(
+                self._endpoints.get('folder_contacts').format(
+                    id=self.folder_id))
 
         if limit is None or limit > self.protocol.max_top_value:
             batch = self.protocol.max_top_value
@@ -705,9 +756,8 @@ class BaseContactFolder(ApiComponent):
         if not email:
             return None
 
-        email = email.strip()
         query = self.q().any(collection='email_addresses', attribute='address',
-                             word=email, operation='eq')
+                             word=email.strip(), operation='eq')
         contacts = list(self.get_contacts(limit=1, query=query))
         return contacts[0] if contacts else None
 
@@ -964,40 +1014,3 @@ class AddressBook(ContactFolder):
 
     def __repr__(self):
         return 'Address Book resource: {}'.format(self.main_resource)
-
-
-class GlobalAddressList(BaseContactFolder):
-    """ A class representing the Global Address List (Users API) """
-
-    def __init__(self, *, parent=None, con=None, **kwargs):
-        # Set instance to root instance and main_resource to GAL_MAIN_RESOURCE
-        super().__init__(parent=parent, con=con, root=True,
-                         main_resource=GAL_MAIN_RESOURCE,
-                         name='Global Address List', **kwargs)
-
-    def __repr__(self):
-        return 'Global Address List'
-
-    def get_contact_by_email(self, email):
-        """ Returns a Contact by it's email
-
-        :param email: email to get contact for
-        :return: Contact for specified email
-        :rtype: Contact
-        """
-        if not email:
-            return None
-
-        email = email.strip()
-
-        url = self.build_url('{}/{}'.format(self._endpoints.get('gal'), email))
-
-        response = self.con.get(url)
-        if not response:
-            return []
-
-        data = response.json()
-
-        # Everything received from cloud must be passed as self._cloud_data_key
-        return self.contact_constructor(parent=self,
-                                        **{self._cloud_data_key: data})

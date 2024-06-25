@@ -1,5 +1,5 @@
 import datetime as dt
-##import logging
+import logging
 
 # noinspection PyPep8Naming
 from bs4 import BeautifulSoup as bs
@@ -8,7 +8,7 @@ from dateutil.parser import parse
 from .utils import TrackerSet
 from .utils import ApiComponent
 
-##log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class Task(ApiComponent):
@@ -223,7 +223,7 @@ class Task(ApiComponent):
             value = dt.datetime(value.year, value.month, value.day)
         if value.tzinfo is None:
             # localize datetime
-            value = self.protocol.timezone.localize(value)
+            value = value.replace(tzinfo=self.protocol.timezone)
         elif value.tzinfo != self.protocol.timezone:
             value = value.astimezone(self.protocol.timezone)
         self.__due = value
@@ -251,7 +251,7 @@ class Task(ApiComponent):
                 value = dt.datetime(value.year, value.month, value.day)
             if value.tzinfo is None:
                 # localize datetime
-                value = self.protocol.timezone.localize(value)
+                value = value.replace(tzinfo=self.protocol.timezone)
             elif value.tzinfo != self.protocol.timezone:
                 value = value.astimezone(self.protocol.timezone)
             self.mark_completed()
@@ -342,7 +342,7 @@ class Task(ApiComponent):
                 self.protocol.timezone) if self.__modified else None
             self.__is_completed = task.get(self._cc('status'), None) == 'Completed'
         else:
-            self.__modified = self.protocol.timezone.localize(dt.datetime.now())
+            self.__modified = dt.datetime.now().replace(tzinfo=self.protocol.timezone)
 
         return True
 
@@ -490,8 +490,7 @@ class Folder(ApiComponent):
         if order_by:
             params['$orderby'] = order_by
 
-        response = self.con.get(url, params=params,
-                                headers={'Prefer': 'outlook.timezone="UTC"'})
+        response = self.con.get(url, params=params)
 
         if not response:
             return iter(())
@@ -533,8 +532,8 @@ class Folder(ApiComponent):
             params.update(param.as_params())
             by_id = False
 
-        response = self.con.get(url, params=params,
-                                headers={'Prefer': 'outlook.timezone="UTC"'})
+        response = self.con.get(url, params=params)
+
         if not response:
             return None
 

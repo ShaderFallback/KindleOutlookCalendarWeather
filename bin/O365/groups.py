@@ -1,10 +1,11 @@
-#import logging
+import logging
 
 from dateutil.parser import parse
 from .utils import ApiComponent
 from .directory import User
 
-#log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+
 
 class Group(ApiComponent):
     """ A Microsoft O365 group """
@@ -104,6 +105,7 @@ class Group(ApiComponent):
 
         return [self.member_constructor(parent=self, **{self._cloud_data_key: lst}) for lst in data.get('value', [])]
 
+
 class Groups(ApiComponent):
     """ A microsoft groups class
         In order to use the API following permissions are required.
@@ -113,7 +115,8 @@ class Groups(ApiComponent):
     _endpoints = {
         'get_user_groups': '/users/{user_id}/memberOf',
         'get_group_by_id': '/groups/{group_id}',
-        'get_group_by_mail': '/groups/?$search="mail:{group_mail}"&$count=true'
+        'get_group_by_mail': '/groups/?$search="mail:{group_mail}"&$count=true',
+        'list_groups': '/groups',
     }
 
     group_constructor = Group
@@ -216,6 +219,25 @@ class Groups(ApiComponent):
             # get channels by the team id
             url = self.build_url(
                 self._endpoints.get('get_user_groups').format(user_id=user_id))
+
+        response = self.con.get(url)
+
+        if not response:
+            return None
+
+        data = response.json()
+
+        return [
+            self.group_constructor(parent=self, **{self._cloud_data_key: group})
+            for group in data.get('value', [])]
+
+    def list_groups(self):
+        """ Returns list of groups
+        :rtype: list[Group]
+        """
+
+        url = self.build_url(
+            self._endpoints.get('list_groups'))
 
         response = self.con.get(url)
 
