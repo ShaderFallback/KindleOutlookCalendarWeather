@@ -9,7 +9,7 @@
 
 **[English](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/blob/main/README_english.md)**
 
-new 新增支持RSS 订阅新闻显示(如果启用RSS,无需配置日历)
+# new 新增支持RSS 订阅新闻显示(如果启用RSS,无需配置日历)  
 双Rss链接(每小时切换轮播两个新闻源)
 如果Rss数量超过单页数量,每分钟翻页一次
  
@@ -59,17 +59,15 @@ https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=52
 #12.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
 
 
-越狱原贴链接
+# 越狱原贴链接        
 https://www.mobileread.com/forums/showthread.php?t=225030
 
-非越狱方案
+# 非越狱方案    
 你需要有一个 Windows  或 Linux 服务器并安装Python环境, 修改配置文件 config.ini 
 中 HtmlServer 项设置为 1 , 运行脚本WeatherStation.py 即可在Kindle 上直接访问网页
 如果想省钱也可以购买一个 香橙派之类的国产ARM开发板,或二手的瘦客户机
 
-优质 RSS 订阅可访问 https://github.com/weekend-project-space/top-rss-list
-
-常见问题:
+# 常见问题:  
 [log错误](sh: fbink: not found)
 解决方法: 安装 USBNetwork Hack 否则可能无fbink命令
 [log错误] import ImageFont ImportError: The _imagingft C module is not installed
@@ -77,7 +75,7 @@ https://www.mobileread.com/forums/showthread.php?t=225030
 [log错误] [FBInk] [fbink_open] Cannot open framebuffer character device: Permission denied!
 使用 RUNME.sh 脚本来启动即可
 
+优质 RSS 订阅可访问 https://github.com/weekend-project-space/top-rss-list
 
-
-Bilibili 日出东水 原创制作
+# Bilibili 日出东水 原创制作
 https://space.bilibili.com/319287192
