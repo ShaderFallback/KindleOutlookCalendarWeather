@@ -59,7 +59,12 @@ Jailbreak original post link https://www.mobileread.com/forums/showthread.php?t=
 
 Non-jailbreak solution You need a Windows or Linux server and install Python environment, modify the configuration file config.ini Set HtmlServer item to 1 , run script WeatherStation.py and you can directly access the web page on Kindle If you want to save money, you can also buy a domestic ARM development board like Orange Pi or a second-hand thin client
 
-
+Frequently Asked Questions:
+[log error] (sh: fbink: not found) Solution: Install USBNetwork Hack or you may not have the fbink command
+[log error] import ImageFont ImportError: The _imagingft C module is not installed Solution: Restore the system and reinstall the
+latest version of Python3. Connect to https://www.mobileread.com/forums/showthread.php?t=225030
+[log error] [FBInk] [fbink_open] Cannot open framebuffer character device: Permission denied!
+Use the RUNME.sh script to start it.
 
 Bilibili 日出东水 原创制作
 https://space.bilibili.com/319287192
