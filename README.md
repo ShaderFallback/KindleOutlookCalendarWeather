@@ -46,12 +46,12 @@ https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBla
 2.身份验证，添加重定向 网址
 https://login.microsoftonline.com/common/oauth2/nativeclient 
 
-3.记下应用程序（客户端）ID 和 密码值  
+3.记下应用程序（客户端）ID 和 密码值
 
 4. 开通Outlook邮箱的Api权限, 得到客户端ID 和 密码值 (如何获取看这个视频)
 https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=5228a3ffeeee092609a234a5dbf99989
 
-5. 使用令牌生成工具,生成令牌文件 https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/0.1
+5. 使用令牌生成工具,生成令牌文件 [https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/0.1](https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/1.0.1)
 
 6. 将生成好的 o365_token.txt 文件放在 KindleOutlookCalendarWeather/bin  目录下
 
