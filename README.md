@@ -28,42 +28,39 @@ https://bookfere.com/post/311.html#p_6
 https://bookfere.com/post/472.html
 
 #4.安装Kindle 专用 Python3.9
-https://bookfere.com/post/311.html#p_6
+https://bookfere.com/post/311.html#p_6     
 
-## 令牌生成步骤(只看RSS无需配置此步骤)                
- 1.第一步注册应用
- https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
+#5. 打开scripts文件夹下的 city_code.json(建议用Notepad++, VsCode) Ctrl+F 查询你所在的城市代码
 
- 2.身份验证，添加重定向 网址
- https://login.microsoftonline.com/common/oauth2/nativeclient 
+#6. 修改 config.ini 文件CityCode 项
 
- 3.记下应用程序（客户端）ID 和 密码值
+#7. Kindle数据线连接电脑, 将KindleOutlookCalendarWeather 文件夹拷贝到extensions 文件夹下
 
-(只看RSS无需配置此步骤)
-#5. 开通Outlook邮箱的Api权限, 得到客户端ID 和 密码值 (如何获取看这个视频)
+#8.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
+
+
+## 令牌生成步骤,配置OutLook (只看RSS无需配置此步骤)                    
+1.第一步注册应用
+https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
+
+2.身份验证，添加重定向 网址
+https://login.microsoftonline.com/common/oauth2/nativeclient 
+
+3.记下应用程序（客户端）ID 和 密码值  
+
+4. 开通Outlook邮箱的Api权限, 得到客户端ID 和 密码值 (如何获取看这个视频)
 https://www.bilibili.com/video/BV1Sa411E7qk?spm_id_from=333.999.0.0&vd_source=5228a3ffeeee092609a234a5dbf99989
 
-(只看RSS无需配置此步骤)
-#6. 使用令牌生成工具,生成令牌文件 https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/0.1
+5. 使用令牌生成工具,生成令牌文件 https://github.com/ShaderFallback/KindleOutlookCalendarWeather/releases/tag/0.1
 
-(只看RSS无需配置此步骤)
-#7. 将生成好的 o365_token.txt 文件放在 KindleOutlookCalendarWeather/bin  目录下
+6. 将生成好的 o365_token.txt 文件放在 KindleOutlookCalendarWeather/bin  目录下
 
-(只看RSS无需配置此步骤)
-#8. 修改 config.ini 文件 ClientID 和 ClientValue,推荐使用notepad++ 保存时选择 utf8无BOM格式
+7. 修改 config.ini 文件 ClientID 和 ClientValue,推荐使用notepad++ 保存时选择 utf8无BOM格式
 不能使用Windows记事本编辑!!!,否则在Linux上读取会出问题
 
 
-#9. 打开scripts文件夹下的 city_code.json(建议用Notepad++) Ctrl+F 查询你所在的城市代码
-
-#10. 修改 config.ini 文件CityCode 项
-
-#11. Kindle数据线连接电脑, 将KindleOutlookCalendarWeather 文件夹拷贝到extensions 文件夹下
-
-#12.打开 Kual 应用启动器, 点击Outlook天气台历菜单 -> WeatherCalendar_ON  启动应用
-
-备注:
-new 新增支持RSS 订阅新闻显示(如果启用RSS,无需配置日历)  
+# 备注:
+如果启用RSS,无需配置日历
 双Rss链接(每小时切换轮播两个新闻源)
 如果Rss数量超过单页数量,每分钟翻页一次  
 
