@@ -84,7 +84,7 @@ https://www.mobileread.com/forums/showthread.php?t=225030
 
 3.[log错误] [FBInk] [fbink_open] Cannot open framebuffer character device: Permission denied!
 
-解决方法: 使用 RUNME.sh 脚本来启动即可
+解决方法: 使用 RUNME.sh 脚本来启动即可,可以将 bin 目录下的 RUNME.sh 复制到Kindle根目录,在kindle搜索栏 输入 ;log runme 即可运行天气插件！ 
 
 # RSS 订阅资源
 可访问 https://github.com/weekend-project-space/top-rss-list
