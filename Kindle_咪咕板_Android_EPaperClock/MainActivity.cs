@@ -128,10 +128,24 @@ namespace App1
 
                     //获取星期
                     var dayOfWeek = dateTime.DayOfWeek;
+                    int weekInt = (int)dayOfWeek;
+                    int monthInt = (int)month;
 
-                    string today = weekdays[(int)dayOfWeek];
-                    string today_English = weekdays_EnglishArray[(int)dayOfWeek];
-                    string month_English = month_EnglishArray[(int)month];
+                    string today = "";
+                    string today_English = "";
+                    string month_English = "";
+
+                    if (weekInt >= 0 && weekInt <=6)
+                    {
+                        today = weekdays[weekInt];
+                        today_English = weekdays_EnglishArray[weekInt];
+                    }
+                    else
+                    {
+                        today = weekInt.ToString();
+                    }
+
+                    month_English = month_EnglishArray[monthInt -1];
 
                     //获取当前小时
                     var hour = dateTime.Hour;
