@@ -301,7 +301,7 @@ def DrawHorizontalDar(draw,Himage,timeUpdate):
     #显示年月日
     draw.text((34, 70), strtime, font = fontSize20, fill = 0)
     #显示城市
-    #draw.text((220, 55), tempArray[0], font = fontSize16, fill = 0)
+    draw.text((300, 55), tempArray[0], font = fontSize16, fill = 0)
     #天气图标
     tempTypeIcon = Image.open(rootPath + "/pic/weatherType/" + UpdateWeatherIcon(tempArray[4]))
     Himage.paste(tempTypeIcon,(375,30))
@@ -387,11 +387,11 @@ def WeatherStrSwitch(index):
 
 def WeatherSwitch(index):
     if index == 0:
-        return 4
-    elif index == 1:
         return 9
-    elif index == 2:
+    elif index == 1:
         return 14
+    elif index == 2:
+        return 19
 
 def DrawWeather(draw,Himage):
     for x in range(0,3):
