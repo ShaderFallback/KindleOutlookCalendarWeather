@@ -301,7 +301,7 @@ def DrawHorizontalDar(draw,Himage,timeUpdate):
     #显示年月日
     draw.text((34, 70), strtime, font = fontSize20, fill = 0)
     #显示城市
-    draw.text((300, 55), tempArray[0], font = fontSize16, fill = 0)
+    #draw.text((300, 55), tempArray[0], font = fontSize16, fill = 0)
     #天气图标
     tempTypeIcon = Image.open(rootPath + "/pic/weatherType/" + UpdateWeatherIcon(tempArray[4]))
     Himage.paste(tempTypeIcon,(375,30))
@@ -383,7 +383,7 @@ def WeatherStrSwitch(index):
     elif index == 1:
         return"后天"
     elif index == 2:
-        return"大后天"
+        return"大后"
 
 def WeatherSwitch(index):
     if index == 0:
@@ -395,20 +395,22 @@ def WeatherSwitch(index):
 
 def DrawWeather(draw,Himage):
     for x in range(0,3):
-        draw.text((630,145 + x *155),WeatherStrSwitch(x), font = fontSize20, fill = 0)
+        Y_offset = x *155
+        
+        draw.text((665,145 + Y_offset),WeatherStrSwitch(x), font = fontSize20, fill = 0)
         strWeather = tempArray[WeatherSwitch(x)]
         #风力
         windTemp = tempArray[WeatherSwitch(x)+1] + tempArray[WeatherSwitch(x)+2]
-        draw.text((690,145 + x *155),windTemp, font = fontSize20, fill = 0)
+        draw.text((715,145 + Y_offset),windTemp, font = fontSize20, fill = 0)
         #图标
         pathIcon = UpdateWeatherIcon(strWeather)
         tempTypeIcon = Image.open(rootPath + "/pic/weatherType/" + pathIcon)
-        Himage.paste(tempTypeIcon,(630,180 + x*155))
+        Himage.paste(tempTypeIcon,(670,180 + Y_offset))
         #天气
-        draw.text((690,188 + x *155),strWeather, font = fontSize25, fill = 0)
+        draw.text((730,188 + Y_offset),strWeather, font = fontSize25, fill = 0)
         #温度
         forecastTemp = ReplaceLowTemp(tempArray[WeatherSwitch(x)-2])+"-"+ReplaceHeightTemp(tempArray[WeatherSwitch(x)-1]) +" 度"
-        draw.text((680,220 + x *155),forecastTemp, font = fontSize20, fill = 0)
+        draw.text((690,230 + x *165),forecastTemp, font = fontSize20, fill = 0)
 
 def ClearScreen():
     global config
