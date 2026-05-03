@@ -23,13 +23,16 @@ import threading
 from configparser import ConfigParser
 import feedparser
 import math
+
 fontSize16 = ImageFont.truetype(fontPath, 16)
 fontSize20 = ImageFont.truetype(fontPath, 20)
 fontSize25 = ImageFont.truetype(fontPath, 25)
 fontSize30 = ImageFont.truetype(fontPath, 30)
 fontSize60 = ImageFont.truetype(fontPath, 60)
-fontSize70 = ImageFont.truetype(fontPath, 70)
+fontSize90 = ImageFont.truetype(fontPath, 90)
+fontSize220 = ImageFont.truetype(fontPath, 220)
 
+displayMode = 0
 oilStrTime = ""
 weekStr = ""
 oilStrWeek = ""
@@ -206,6 +209,22 @@ def TodayWeek(nowWeek):
     elif nowWeek =="6":
         return"星期六"
 
+def TodayWeekEnglish(nowWeek):
+    if nowWeek == "0":
+        return"Sun"
+    elif nowWeek =="1":
+        return"Mon"
+    elif nowWeek =="2":
+        return"Tue"
+    elif nowWeek =="3":
+        return"Wed"
+    elif nowWeek =="4":
+        return"Thu"
+    elif nowWeek =="5":
+        return"Fir"
+    elif nowWeek =="6":
+        return"Sat"
+
 def UpdateData():
     global tempArray
     tempArray = GetTemp()
@@ -290,14 +309,19 @@ def StrLenCur(text):
         return text
 
 def DrawHorizontalDar(draw,Himage,timeUpdate):
+    global displayMode
     strtime = timeUpdate.strftime('%Y-%m-%d') #年月日
     strtime2 = timeUpdate.strftime('%H:%M')   #时间
     strtimeW = timeUpdate.strftime('%w') #星期
 
     #显示星期
     draw.text((34, 30), TodayWeek(strtimeW), font = fontSize30, fill = 0)
-    #显示时间   
-    draw.text((170,20 ), strtime2, font = fontSize60, fill = 0)
+    #时间模式显示星期的英文
+    if(displayMode == 2):
+        draw.text((170,20 ), TodayWeekEnglish(strtimeW), font = fontSize60, fill = 0)
+    else:
+        #显示时间   
+        draw.text((170,20 ), strtime2, font = fontSize60, fill = 0)
     #显示年月日
     draw.text((34, 70), strtime, font = fontSize20, fill = 0)
     #显示城市
@@ -376,7 +400,13 @@ def DrawRss(draw):
         tempY += 1
     nowPage += unitCount
         
- 
+def DrawTime(draw,timeUpdate):
+    strtime = timeUpdate.strftime('%H:%M')
+    strtime2 = timeUpdate.strftime('%Y-%m-%d') #年月日
+    draw.text((50, 150), strtime, font = fontSize220, fill = 0)
+    draw.text((50, 400), strtime2, font = fontSize90, fill = 0)
+
+    
 def WeatherStrSwitch(index):
     if index == 0:
         return"明天"
@@ -395,13 +425,13 @@ def WeatherSwitch(index):
 
 def DrawWeather(draw,Himage):
     for x in range(0,3):
-        Y_offset = x *155
+        Y_offset = x *160
         
-        draw.text((665,145 + Y_offset),WeatherStrSwitch(x), font = fontSize20, fill = 0)
+        draw.text((665,120 + Y_offset),WeatherStrSwitch(x), font = fontSize20, fill = 0)
         strWeather = tempArray[WeatherSwitch(x)]
         #风力
         windTemp = tempArray[WeatherSwitch(x)+1] + tempArray[WeatherSwitch(x)+2]
-        draw.text((715,145 + Y_offset),windTemp, font = fontSize20, fill = 0)
+        draw.text((690,150 + Y_offset),windTemp, font = fontSize20, fill = 0)
         #图标
         pathIcon = UpdateWeatherIcon(strWeather)
         tempTypeIcon = Image.open(rootPath + "/pic/weatherType/" + pathIcon)
@@ -410,7 +440,7 @@ def DrawWeather(draw,Himage):
         draw.text((730,188 + Y_offset),strWeather, font = fontSize25, fill = 0)
         #温度
         forecastTemp = ReplaceLowTemp(tempArray[WeatherSwitch(x)-2])+"-"+ReplaceHeightTemp(tempArray[WeatherSwitch(x)-1]) +" 度"
-        draw.text((690,230 + x *165),forecastTemp, font = fontSize20, fill = 0)
+        draw.text((690,230 + Y_offset),forecastTemp, font = fontSize20, fill = 0)
 
 def ClearScreen():
     global config
@@ -428,6 +458,8 @@ def UpdateTime():
     global clearCount
     global switchRss
     global config
+    global displayMode
+    
     oldIntTimeH = 0
     bgName = ""
     while (True):
@@ -448,22 +480,22 @@ def UpdateTime():
         Himage2 = Image.new('1', (800, 600), 255)
         draw = ImageDraw.Draw(Himage)
         drawRss = ImageDraw.Draw(Himage2)
-        #显示背景
-        if int(config[6][1]) == 1:
-            bgName = "bgRss.png"
-        else:
-            bgName = "bg.png"
-        bmp = Image.open(rootPath + '/pic/'+ bgName)
+        
+        #显示背景 (统一背景)
+        bmp = Image.open(rootPath + '/pic/bgRss.png')
         bmpAlpha = Image.open(rootPath + '/pic/bgRss_Alpha.png')
         
         Himage.paste(bmp,(0,0))
         #绘制水平栏
         DrawHorizontalDar(draw,Himage,timeUpdate)
-        #绘制日程
-        if int(config[6][1]) == 1:
-            DrawRss(drawRss)
-        else:
+        
+        #绘制日程&RSS&时间
+        if (displayMode == 0):
             DrawSchedule(drawRss,timeUpdate)
+        elif(displayMode == 1):
+            DrawRss(drawRss)
+        elif(displayMode == 2):
+            DrawTime(drawRss,timeUpdate)
             
         #绘制天气预报
         DrawWeather(draw,Himage)
@@ -630,13 +662,16 @@ if int(config[4][1]) == 1:
 timeThreading = threading.Thread(target=UpdateTime, args=())
 timeThreading.start()
 
-if int(config[6][1]) == 1:
-    networkGetRss = threading.Thread(target=GetRss, args=())
-    networkGetRss.start()
-else:
+displayMode = int(config[6][1])
+
+if(displayMode) == 0:
     networkThreading = threading.Thread(target=NetworkThreading, args=())
     networkThreading.start()
-
+elif(displayMode) == 1: 
+    networkGetRss = threading.Thread(target=GetRss, args=())
+    networkGetRss.start()
+elif(displayMode) == 2: 
+    pass
 
 
 
